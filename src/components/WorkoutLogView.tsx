@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, WorkoutSet, Exercise } from '../db';
+import { db, WorkoutSet, Exercise, Category } from '../db';
 import { Plus, Check, Trash2, Dumbbell, Flame, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell, Square } from 'lucide-react';
 import { checkAndCelebratePR } from '../utils/prCalculator';
 import { ExerciseSelectorView } from './ExerciseSelectorView';
@@ -19,6 +19,12 @@ interface WorkoutLogViewProps {
   onCloseTimer: () => void;
 }
 
+type LogSubView =
+  | { type: 'overview' }
+  | { type: 'selector-categories' }
+  | { type: 'selector-exercises'; category: Category }
+  | { type: 'in-exercise'; exerciseId: string };
+
 export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   selectedDate,
   onStartTimer,
@@ -32,31 +38,51 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   onAddTimerSeconds,
   onCloseTimer
 }) => {
-  const [activeExerciseId, setActiveExerciseId] = useState<string | null>(null);
-  const [isAddingExercise, setIsAddingExercise] = useState(false);
+  const [subView, setSubView] = useState<LogSubView>({ type: 'overview' });
 
-  // Sync active exercise state with Android native back button / swipe gesture
+  // Single Central PopState Listener for Log Sub-Views
   useEffect(() => {
-    if (activeExerciseId) {
-      window.history.pushState({ inExercise: true, exerciseId: activeExerciseId }, '');
+    const handlePopState = (e: PopStateEvent) => {
+      const s = e.state;
+      if (s && s.subViewType) {
+        if (s.subViewType === 'selector-exercises' && s.category) {
+          setSubView({ type: 'selector-exercises', category: s.category });
+        } else if (s.subViewType === 'selector-categories') {
+          setSubView({ type: 'selector-categories' });
+        } else if (s.subViewType === 'in-exercise' && s.exerciseId) {
+          setSubView({ type: 'in-exercise', exerciseId: s.exerciseId });
+        } else {
+          setSubView({ type: 'overview' });
+        }
+      } else {
+        setSubView({ type: 'overview' });
+      }
+    };
 
-      const handlePopState = () => {
-        setActiveExerciseId(null);
-      };
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
-      window.addEventListener('popstate', handlePopState);
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-      };
-    }
-  }, [activeExerciseId]);
+  // Navigation Trigger Functions (Push state ONLY on user click)
+  const openAddExerciseCategories = () => {
+    window.history.pushState({ subViewType: 'selector-categories' }, '');
+    setSubView({ type: 'selector-categories' });
+  };
 
-  const handleCloseExerciseView = () => {
-    if (window.history.state && window.history.state.inExercise) {
-      window.history.back();
-    } else {
-      setActiveExerciseId(null);
-    }
+  const selectCategory = (category: Category) => {
+    window.history.pushState({ subViewType: 'selector-exercises', category }, '');
+    setSubView({ type: 'selector-exercises', category });
+  };
+
+  const openInExercise = (exerciseId: string) => {
+    window.history.pushState({ subViewType: 'in-exercise', exerciseId }, '');
+    setSubView({ type: 'in-exercise', exerciseId });
+  };
+
+  const navigateSubViewBack = () => {
+    window.history.back();
   };
 
   // Fetch sets for selectedDate
@@ -157,8 +183,9 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
       timestamp: Date.now()
     });
 
-    setIsAddingExercise(false);
-    setActiveExerciseId(exercise.id);
+    // Replace current selector state with in-exercise view
+    window.history.replaceState({ subViewType: 'in-exercise', exerciseId: exercise.id }, '');
+    setSubView({ type: 'in-exercise', exerciseId: exercise.id });
   };
 
   const addSetToExercise = async (exerciseId: string, exerciseName: string) => {
@@ -219,11 +246,14 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   // -------------------------------------------------------------
   // FULL-PAGE MODE A: 2-STEP EXERCISE SELECTOR VIEW
   // -------------------------------------------------------------
-  if (isAddingExercise) {
+  if (subView.type === 'selector-categories' || subView.type === 'selector-exercises') {
+    const selectedCat = subView.type === 'selector-exercises' ? subView.category : null;
     return (
       <ExerciseSelectorView
+        selectedCategory={selectedCat}
+        onSelectCategory={selectCategory}
         onSelectExercise={addExerciseToDate}
-        onCancel={() => setIsAddingExercise(false)}
+        onBack={navigateSubViewBack}
       />
     );
   }
@@ -231,7 +261,8 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   // -------------------------------------------------------------
   // FULL-PAGE MODE B: DEDICATED IN-EXERCISE VIEW
   // -------------------------------------------------------------
-  if (activeExerciseId) {
+  if (subView.type === 'in-exercise') {
+    const activeExerciseId = subView.exerciseId;
     const sets = exerciseGroupMap.get(activeExerciseId) || [];
     const exInfo = exercises?.find((e) => e.id === activeExerciseId);
     const isCardio = exInfo?.isCardio || false;
@@ -242,7 +273,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
         {/* Back Navigation & Exercise Title Bar */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-surfaceBorder">
           <button
-            onClick={handleCloseExerciseView}
+            onClick={navigateSubViewBack}
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface border border-surfaceBorder hover:bg-slate-800 text-slate-200 text-sm font-bold transition"
           >
             <ArrowLeft className="w-4 h-4 text-brand-400" />
@@ -430,7 +461,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
           </button>
 
           <button
-            onClick={handleCloseExerciseView}
+            onClick={navigateSubViewBack}
             className="py-3.5 rounded-2xl bg-surface border border-surfaceBorder text-slate-300 font-bold flex items-center justify-center gap-2 transition hover:bg-slate-800"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -508,7 +539,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
             Tap below to select an exercise and start logging your sets!
           </p>
           <button
-            onClick={() => setIsAddingExercise(true)}
+            onClick={openAddExerciseCategories}
             className="px-5 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold flex items-center gap-2 mx-auto shadow-lg shadow-brand-600/30 transition"
           >
             <Plus className="w-5 h-5" />
@@ -530,7 +561,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
             return (
               <button
                 key={exerciseId}
-                onClick={() => setActiveExerciseId(exerciseId)}
+                onClick={() => openInExercise(exerciseId)}
                 className="w-full text-left bg-surface border border-surfaceBorder hover:border-brand-500/50 rounded-2xl p-4 flex items-center justify-between transition group shadow-md"
               >
                 <div className="flex items-center gap-3.5">
@@ -566,7 +597,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
 
           <div className="pt-3">
             <button
-              onClick={() => setIsAddingExercise(true)}
+              onClick={openAddExerciseCategories}
               className="w-full py-3.5 rounded-2xl bg-surface border border-brand-500/40 hover:bg-brand-600/10 text-brand-400 font-bold flex items-center justify-center gap-2 transition shadow-lg"
             >
               <Plus className="w-5 h-5" />

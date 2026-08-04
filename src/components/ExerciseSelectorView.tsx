@@ -1,61 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Category, Exercise } from '../db';
 import { ArrowLeft, Search, Plus, Dumbbell, ChevronRight, Activity } from 'lucide-react';
 
 interface ExerciseSelectorViewProps {
+  selectedCategory: Category | null;
+  onSelectCategory: (category: Category) => void;
   onSelectExercise: (exercise: Exercise) => void;
-  onCancel: () => void;
+  onBack: () => void;
 }
 
 export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
+  selectedCategory,
+  onSelectCategory,
   onSelectExercise,
-  onCancel
+  onBack
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
 
-  // New Custom Exercise Form State
+  // Custom Exercise Form State
   const [newExName, setNewExName] = useState('');
   const [newExCategory, setNewExCategory] = useState<string>('chest');
   const [newExIsCardio, setNewExIsCardio] = useState(false);
 
   const categories = useLiveQuery(() => db.categories.toArray());
   const exercises = useLiveQuery(() => db.exercises.toArray());
-
-  // Register step 1 history state on mount and handle Android native back gesture
-  useEffect(() => {
-    window.history.pushState({ addExercise: true, step: 1 }, '');
-
-    const handlePopState = () => {
-      if (selectedCategory) {
-        setSelectedCategory(null);
-      } else {
-        onCancel();
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [selectedCategory, onCancel]);
-
-  const handleSelectCategory = (cat: Category) => {
-    window.history.pushState({ addExercise: true, step: 2 }, '');
-    setSelectedCategory(cat);
-  };
-
-  const handleBack = () => {
-    if (window.history.state && window.history.state.addExercise) {
-      window.history.back();
-    } else if (selectedCategory) {
-      setSelectedCategory(null);
-    } else {
-      onCancel();
-    }
-  };
 
   const handleCreateCustomExercise = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +62,7 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
       {/* Top Header Navigation */}
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-surfaceBorder">
         <button
-          onClick={handleBack}
+          onClick={onBack}
           className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface border border-surfaceBorder hover:bg-slate-800 text-slate-200 text-sm font-bold transition"
         >
           <ArrowLeft className="w-4 h-4 text-brand-400" />
@@ -138,7 +108,7 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
               return (
                 <button
                   key={cat.id}
-                  onClick={() => handleSelectCategory(cat)}
+                  onClick={() => onSelectCategory(cat)}
                   className="w-full text-left bg-surface border border-surfaceBorder hover:border-brand-500/50 rounded-2xl p-4 flex items-center justify-between transition group shadow-md"
                 >
                   <div className="flex items-center gap-3.5">
