@@ -29,7 +29,7 @@ export const RestTimerOverlay: React.FC<RestTimerOverlayProps> = ({
   const progressPercent = totalSeconds > 0 ? Math.min(100, Math.max(0, ((totalSeconds - secondsLeft) / totalSeconds) * 100)) : 0;
 
   return (
-    <div className="fixed bottom-16 left-0 right-0 z-40 px-4 md:left-auto md:right-6 md:bottom-6 md:w-96">
+    <div className="fixed bottom-20 left-0 right-0 z-40 px-4 md:left-auto md:right-6 md:bottom-20 md:w-96">
       <div className="bg-[#12141d]/95 backdrop-blur-md border border-brand-500/30 rounded-2xl p-4 shadow-2xl shadow-brand-500/10 transition-all duration-300">
         <div className="w-full bg-slate-800/60 rounded-full h-1.5 mb-3 overflow-hidden">
           <div

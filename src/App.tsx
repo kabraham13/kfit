@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { initDatabaseDefaults, db } from './db';
 import { Header } from './components/Header';
+import { BottomNav } from './components/BottomNav';
 import { WorkoutLogView } from './components/WorkoutLogView';
 import { ExerciseLibraryView } from './components/ExerciseLibraryView';
 import { HistoryView } from './components/HistoryView';
@@ -97,6 +98,7 @@ export function App() {
       {/* Install PWA Prompt Banner */}
       <InstallPwaBanner />
 
+      {/* Top Header with Brand Title, Date Picker, and Settings Icon */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -104,6 +106,7 @@ export function App() {
         setSelectedDate={setSelectedDate}
       />
 
+      {/* Main View Router */}
       <main>
         {activeTab === 'workout' && (
           <WorkoutLogView
@@ -134,6 +137,7 @@ export function App() {
         )}
       </main>
 
+      {/* Rest Timer Floating Bar */}
       {timerSecondsLeft !== null && (
         <RestTimerOverlay
           secondsLeft={timerSecondsLeft}
@@ -145,6 +149,12 @@ export function App() {
           onClose={handleCloseTimer}
         />
       )}
+
+      {/* Fixed Bottom Navigation Bar */}
+      <BottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
     </div>
   );
 }
