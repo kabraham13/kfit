@@ -11,10 +11,10 @@ import {
   RefreshCw,
   Cloud,
   CloudUpload,
-  Link,
   Unlink,
   Check,
-  Key
+  Key,
+  Share2
 } from 'lucide-react';
 import {
   getStoredGDriveStatus,
@@ -86,6 +86,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     document.body.removeChild(link);
   };
 
+  const handleNativeDriveShare = async () => {
+    try {
+      const csvContent = await exportFitNotesCSV();
+      const dateStr = new Date().toISOString().split('T')[0];
+      const file = new File([csvContent], `FitNotes_Export_${dateStr}.csv`, {
+        type: 'text/csv'
+      });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'kfit Workout Backup',
+          text: 'FitNotes CSV Workout Backup',
+          files: [file]
+        });
+      } else {
+        handleExport();
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.warn('Share error:', err);
+      }
+    }
+  };
+
   const updateUnitSetting = async (unit: 'lbs' | 'kg') => {
     setWeightUnit(unit);
     await db.userSettings.update('default', { weightUnit: unit });
@@ -96,12 +120,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     await db.userSettings.update('default', { defaultRestTimerSeconds: sec });
   };
 
-  // Google Drive Handlers
+  // Google Drive API Handlers
   const handleConnectDrive = async () => {
     setDriveBackupError(null);
+    if (!customClientId.trim()) {
+      setShowClientIdInput(true);
+      setDriveBackupError('Please enter your Google Cloud OAuth Client ID below to connect your account.');
+      return;
+    }
+
     try {
-      await initiateGoogleDriveAuth(customClientId.trim() || undefined);
+      await initiateGoogleDriveAuth(customClientId.trim());
       setGdriveStatus(getStoredGDriveStatus());
+      setDriveBackupError(null);
     } catch (err: any) {
       setDriveBackupError(err.message || 'Failed to connect Google Drive.');
     }
@@ -136,7 +167,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32 space-y-6 animate-fade-in">
-      {/* Google Drive Automatic Backup Integration Card */}
+      {/* Google Drive Integration Card */}
       <div className="bg-gradient-to-br from-[#12141d] via-[#161a29] to-[#12141d] border border-brand-500/30 rounded-3xl p-5 shadow-2xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -152,12 +183,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </span>
                 ) : (
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-                    Not Linked
+                    Ready
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Auto-sync CSV backups to your personal Google Drive
+                Save CSV backups directly to your Google Drive account
               </p>
             </div>
           </div>
@@ -171,16 +202,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
 
-        {/* Custom OAuth Client ID Config (Optional) */}
+        {/* 1-Tap Save to Drive via Android Native Share */}
+        <div className="p-4 bg-card border border-surfaceBorder rounded-2xl space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Share2 className="w-4 h-4 text-brand-400" />
+                <span>1-Tap "Save to Drive" (Native Mobile Share)</span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Opens Android's native dialog to select Google Drive folder instantly
+              </p>
+            </div>
+
+            <button
+              onClick={handleNativeDriveShare}
+              className="py-2.5 px-4 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-md transition shrink-0"
+            >
+              <CloudUpload className="w-4 h-4" />
+              <span>Save to Drive</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Custom OAuth Client ID Config */}
         {showClientIdInput && (
-          <div className="p-3 bg-[#090a0f] border border-surfaceBorder rounded-2xl space-y-2">
+          <div className="p-3.5 bg-[#090a0f] border border-surfaceBorder rounded-2xl space-y-2">
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Google OAuth Client ID (Optional)
+              Google Cloud OAuth Client ID (For Background Auto-Sync)
             </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="794719238122-xxxx.apps.googleusercontent.com"
+                placeholder="Paste your Google OAuth Client ID..."
                 value={customClientId}
                 onChange={(e) => {
                   setCustomClientId(e.target.value);
@@ -188,13 +242,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }}
                 className="flex-1 bg-[#12141d] border border-surfaceBorder text-white text-xs px-3 py-2 rounded-xl outline-none font-mono"
               />
-              <span className="text-[10px] text-slate-400">Saved</span>
+              <button
+                onClick={handleConnectDrive}
+                className="px-3 py-2 bg-brand-600 text-white font-bold text-xs rounded-xl shrink-0"
+              >
+                Connect
+              </button>
             </div>
+            <p className="text-[10px] text-slate-500">
+              Create a free Client ID in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-brand-400 underline">Google Cloud Console</a> under Web Application with redirect URI matching this domain.
+            </p>
           </div>
         )}
 
         {/* Google Drive Status & Controls */}
-        {gdriveStatus.isConnected ? (
+        {gdriveStatus.isConnected && (
           <div className="space-y-3 pt-1">
             <div className="p-4 bg-card border border-surfaceBorder rounded-2xl flex items-center justify-between">
               <div>
@@ -234,28 +296,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 className="py-3 px-4 bg-surface border border-surfaceBorder hover:border-rose-500/40 text-slate-300 hover:text-rose-400 font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition"
               >
                 <Unlink className="w-4 h-4" />
-                <span>Disconnect Google Drive</span>
+                <span>Disconnect API Link</span>
               </button>
             </div>
 
             {gdriveStatus.lastBackupTime && (
               <div className="text-[11px] text-slate-400 text-center font-medium">
-                Last backed up to Drive: <span className="text-emerald-400 font-bold">{gdriveStatus.lastBackupTime}</span>
+                Last API backup to Drive: <span className="text-emerald-400 font-bold">{gdriveStatus.lastBackupTime}</span>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="pt-1 text-center space-y-3">
-            <p className="text-xs text-slate-300 max-w-md mx-auto">
-              Link your Google Drive account to create automatic offline CSV backups inside a dedicated <span className="font-bold text-brand-400">kfit_backups</span> folder.
-            </p>
-            <button
-              onClick={handleConnectDrive}
-              className="py-3.5 px-6 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs rounded-2xl inline-flex items-center justify-center gap-2 shadow-xl shadow-brand-600/30 transition"
-            >
-              <Link className="w-4 h-4" />
-              <span>Connect Google Drive Account</span>
-            </button>
           </div>
         )}
 
