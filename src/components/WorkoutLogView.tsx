@@ -41,11 +41,6 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     }
   }
 
-  // Calculate total volume for the day
-  const totalVolume = workoutSets
-    ? workoutSets.reduce((sum, s) => (s.isCompleted && !s.distance ? sum + s.weight * s.reps : sum), 0)
-    : 0;
-
   // Compute Active Workout Dates Set
   const activeDatesSet = new Set<string>();
   if (allLogs) {
@@ -184,7 +179,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32">
-      {/* Upgraded Fitness Streak & Weekly Activity Dashboard */}
+      {/* Fitness Streak & Weekly Activity Dashboard */}
       <div className="bg-gradient-to-br from-[#12141d] via-[#181b26] to-[#121829] border border-surfaceBorder rounded-3xl p-5 mb-6 shadow-xl relative overflow-hidden">
         {/* Streak & Weekly Progress Header */}
         <div className="flex items-center justify-between mb-4">
@@ -206,13 +201,6 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
               </p>
             </div>
           </div>
-
-          <div className="text-right hidden sm:block">
-            <div className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Volume Today</div>
-            <div className="text-lg font-black text-brand-400 font-mono">
-              {totalVolume.toLocaleString()} <span className="text-xs font-normal text-slate-400">{weightUnit}</span>
-            </div>
-          </div>
         </div>
 
         {/* Interactive Weekly Activity Day Strip */}
@@ -231,7 +219,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
               <span className="text-[10px] font-bold uppercase opacity-75">{day.dayName}</span>
               <span className="text-sm font-black mt-0.5 font-mono">{day.dayNum}</span>
 
-              {/* Workout Indicator Dot / Checkmark */}
+              {/* Workout Indicator Dot */}
               <div className="mt-1">
                 {day.hasWorkout ? (
                   <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
