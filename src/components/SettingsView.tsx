@@ -227,9 +227,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* Custom OAuth Client ID Config */}
         {showClientIdInput && (
-          <div className="p-3.5 bg-[#090a0f] border border-surfaceBorder rounded-2xl space-y-2">
+          <div className="p-4 bg-[#090a0f] border border-surfaceBorder rounded-2xl space-y-3">
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Google Cloud OAuth Client ID (For Background Auto-Sync)
+              Google Cloud OAuth Client ID (For Background Auto-Sync API)
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -240,18 +240,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   setCustomClientId(e.target.value);
                   localStorage.setItem('kfit_custom_client_id', e.target.value);
                 }}
-                className="flex-1 bg-[#12141d] border border-surfaceBorder text-white text-xs px-3 py-2 rounded-xl outline-none font-mono"
+                className="flex-1 bg-[#12141d] border border-surfaceBorder text-white text-xs px-3.5 py-2.5 rounded-xl outline-none font-mono"
               />
               <button
                 onClick={handleConnectDrive}
-                className="px-3 py-2 bg-brand-600 text-white font-bold text-xs rounded-xl shrink-0"
+                className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shrink-0 transition"
               >
                 Connect
               </button>
             </div>
-            <p className="text-[10px] text-slate-500">
-              Create a free Client ID in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-brand-400 underline">Google Cloud Console</a> under Web Application with redirect URI matching this domain.
-            </p>
+
+            <div className="text-[11px] text-slate-400 space-y-1.5 bg-surface p-3.5 rounded-xl border border-surfaceBorder">
+              <div className="font-bold text-white text-xs">GCP OAuth Configuration Instructions:</div>
+              <div>1. Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-brand-400 underline font-semibold">Google Cloud Credentials</a> and create a <b>Web Application</b> Client ID.</div>
+              <div>2. Set <b>Authorized JavaScript origin</b> to: <code className="bg-[#090a0f] text-emerald-400 px-2 py-0.5 rounded font-mono text-[10px]">https://kabraham13.github.io</code> <span className="text-amber-400 font-extrabold">(No trailing slash /)</span></div>
+              <div>3. Set <b>Authorized redirect URI</b> to: <code className="bg-[#090a0f] text-emerald-400 px-2 py-0.5 rounded font-mono text-[10px]">https://kabraham13.github.io/kfit/</code></div>
+            </div>
           </div>
         )}
 
