@@ -24,9 +24,9 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
   const categories = useLiveQuery(() => db.categories.toArray());
   const exercises = useLiveQuery(() => db.exercises.toArray());
 
-  // Handle Android Native Back Button / Swipe Gesture Navigation
+  // Register step 1 history state on mount and handle Android native back gesture
   useEffect(() => {
-    window.history.pushState({ addExercise: true, step: selectedCategory ? 2 : 1 }, '');
+    window.history.pushState({ addExercise: true, step: 1 }, '');
 
     const handlePopState = () => {
       if (selectedCategory) {
@@ -40,10 +40,17 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [selectedCategory]);
+  }, [selectedCategory, onCancel]);
+
+  const handleSelectCategory = (cat: Category) => {
+    window.history.pushState({ addExercise: true, step: 2 }, '');
+    setSelectedCategory(cat);
+  };
 
   const handleBack = () => {
-    if (selectedCategory) {
+    if (window.history.state && window.history.state.addExercise) {
+      window.history.back();
+    } else if (selectedCategory) {
       setSelectedCategory(null);
     } else {
       onCancel();
@@ -131,7 +138,7 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => handleSelectCategory(cat)}
                   className="bg-surface hover:bg-card border border-surfaceBorder hover:border-brand-500/50 rounded-2xl p-4 text-left transition group shadow-md flex flex-col justify-between h-32"
                 >
                   <div className="flex items-center justify-between w-full">
