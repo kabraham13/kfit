@@ -11,10 +11,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'robots.txt'],
+      includeAssets: ['favicon.svg', 'pwa-192.png', 'pwa-512.png', 'robots.txt'],
       manifest: {
         name: 'kfit - Gym & Workout Logger',
         short_name: 'kfit',
+        id: '/kfit/',
+        start_url: '/kfit/',
+        scope: '/kfit/',
         description: 'Minimal, fast, offline-first FitNotes workout tracker clone',
         theme_color: '#090a0f',
         background_color: '#090a0f',
@@ -22,9 +25,15 @@ export default defineConfig({
         orientation: 'portrait',
         icons: [
           {
-            src: '/kfit/favicon.svg',
-            sizes: '192x192 512x512',
-            type: 'image/svg+xml',
+            src: '/kfit/pwa-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/kfit/pwa-512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ]

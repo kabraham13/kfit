@@ -1,16 +1,25 @@
 {
   "short_name": "kfit",
   "name": "kfit - FitNotes Workout Logger",
-  "icons": [
-    {
-      "src": "/favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "192x192 512x512"
-    }
-  ],
-  "start_url": "/",
+  "id": "/kfit/",
+  "start_url": "/kfit/",
+  "scope": "/kfit/",
+  "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#090a0f",
   "theme_color": "#090a0f",
-  "display": "standalone",
-  "orientation": "portrait"
+  "icons": [
+    {
+      "src": "/kfit/pwa-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/kfit/pwa-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
 }
