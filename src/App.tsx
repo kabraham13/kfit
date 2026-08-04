@@ -113,6 +113,13 @@ export function App() {
             selectedDate={selectedDate}
             onStartTimer={handleStartTimer}
             weightUnit={weightUnit}
+            onSelectExerciseHistory={handleSelectExerciseHistory}
+            timerSecondsLeft={timerSecondsLeft}
+            totalTimerSeconds={totalTimerSeconds}
+            isTimerActive={isTimerActive}
+            onPauseToggleTimer={handlePauseToggleTimer}
+            onResetTimer={handleResetTimer}
+            onAddTimerSeconds={handleAddTimerSeconds}
           />
         )}
 
@@ -137,8 +144,8 @@ export function App() {
         )}
       </main>
 
-      {/* Rest Timer Floating Bar */}
-      {timerSecondsLeft !== null && (
+      {/* Floating Rest Timer (Only shown when outside workout tab while timer active) */}
+      {activeTab !== 'workout' && timerSecondsLeft !== null && (
         <RestTimerOverlay
           secondsLeft={timerSecondsLeft}
           totalSeconds={totalTimerSeconds}
