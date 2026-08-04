@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, WorkoutSet, Exercise } from '../db';
-import { Plus, Check, Trash2, Dumbbell, Flame, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell } from 'lucide-react';
+import { Plus, Check, Trash2, Dumbbell, Flame, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell, Square } from 'lucide-react';
 import { checkAndCelebratePR } from '../utils/prCalculator';
 
 interface WorkoutLogViewProps {
@@ -15,6 +15,7 @@ interface WorkoutLogViewProps {
   onPauseToggleTimer: () => void;
   onResetTimer: () => void;
   onAddTimerSeconds: (sec: number) => void;
+  onCloseTimer: () => void;
 }
 
 export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
@@ -27,7 +28,8 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   isTimerActive,
   onPauseToggleTimer,
   onResetTimer,
-  onAddTimerSeconds
+  onAddTimerSeconds,
+  onCloseTimer
 }) => {
   const [activeExerciseId, setActiveExerciseId] = useState<string | null>(null);
   const [isAddExerciseModalOpen, setIsAddExerciseModalOpen] = useState(false);
@@ -134,7 +136,6 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     });
 
     setIsAddExerciseModalOpen(false);
-    // Immediately open In-Exercise View!
     setActiveExerciseId(exercise.id);
   };
 
@@ -200,7 +201,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   };
 
   // -------------------------------------------------------------
-  // VIEW 2: DEDICATED IN-EXERCISE VIEW (Full screen sets real estate)
+  // VIEW 2: DEDICATED IN-EXERCISE VIEW
   // -------------------------------------------------------------
   if (activeExerciseId) {
     const sets = exerciseGroupMap.get(activeExerciseId) || [];
@@ -244,7 +245,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
           </div>
         </div>
 
-        {/* Integrated Top Rest Timer Header Component */}
+        {/* Integrated Top Rest Timer Header Component with Stop / Cancel button */}
         {timerSecondsLeft !== null && (
           <div className="bg-[#12141d] border border-brand-500/40 rounded-2xl p-4 mb-5 shadow-lg relative overflow-hidden">
             <div className="w-full bg-slate-800/60 rounded-full h-1.5 mb-3 overflow-hidden">
@@ -265,16 +266,16 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => onAddTimerSeconds(-15)}
-                  className="px-2.5 py-1.5 text-xs font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition"
+                  className="px-2 py-1.5 text-xs font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition"
                 >
                   -15s
                 </button>
                 <button
                   onClick={() => onAddTimerSeconds(30)}
-                  className="px-2.5 py-1.5 text-xs font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition"
+                  className="px-2 py-1.5 text-xs font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition"
                 >
                   +30s
                 </button>
@@ -291,8 +292,16 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                 <button
                   onClick={onResetTimer}
                   className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition"
+                  title="Reset Timer"
                 >
                   <RotateCcw className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={onCloseTimer}
+                  className="p-2 text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition border border-rose-500/30"
+                  title="Stop & Delete Timer"
+                >
+                  <Square className="w-4 h-4 fill-current" />
                 </button>
               </div>
             </div>
@@ -405,7 +414,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   }
 
   // -------------------------------------------------------------
-  // VIEW 1: DAILY WORKOUT OVERVIEW (List of added exercises)
+  // VIEW 1: DAILY WORKOUT OVERVIEW
   // -------------------------------------------------------------
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32">

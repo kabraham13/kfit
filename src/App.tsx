@@ -123,6 +123,7 @@ export function App() {
             onPauseToggleTimer={handlePauseToggleTimer}
             onResetTimer={handleResetTimer}
             onAddTimerSeconds={handleAddTimerSeconds}
+            onCloseTimer={handleCloseTimer}
           />
         )}
 
