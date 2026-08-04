@@ -6,6 +6,7 @@ import { ExerciseLibraryView } from './components/ExerciseLibraryView';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import { RestTimerOverlay } from './components/RestTimerOverlay';
+import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { playRestTimerChime, triggerTimerVibration, showTimerNotification } from './utils/timer';
 
 export function App() {
@@ -93,6 +94,9 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#090a0f] text-slate-100 selection:bg-brand-600 selection:text-white">
+      {/* Install PWA Prompt Banner */}
+      <InstallPwaBanner />
+
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
