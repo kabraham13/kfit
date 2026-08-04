@@ -6,6 +6,7 @@ const STORAGE_KEY_USER = 'kfit_gdrive_user';
 const STORAGE_KEY_LAST_BACKUP = 'kfit_gdrive_last_backup';
 const STORAGE_KEY_LAST_BACKUP_MS = 'kfit_gdrive_last_backup_ms';
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const MAX_BACKUPS_TO_RETAIN = 7; // Keep rolling 7 most recent backups (1 week)
 
 export interface GoogleDriveStatus {
   isConnected: boolean;
@@ -108,7 +109,8 @@ export function setAutoBackupEnabled(enabled: boolean) {
 }
 
 /**
- * Uploads current FitNotes CSV backup directly to user's Google Drive inside 'kfit_backups' folder
+ * Uploads current FitNotes CSV backup directly to user's Google Drive inside 'kfit_backups' folder,
+ * and automatically purges old backups past 7 days (rolling 1 week compaction).
  */
 export async function uploadBackupToGoogleDrive(tokenOverride?: string): Promise<{ filename: string; fileId: string }> {
   const token = tokenOverride || localStorage.getItem(STORAGE_KEY_TOKEN);
@@ -169,10 +171,45 @@ export async function uploadBackupToGoogleDrive(tokenOverride?: string): Promise
   localStorage.setItem(STORAGE_KEY_LAST_BACKUP, nowDisplay);
   localStorage.setItem(STORAGE_KEY_LAST_BACKUP_MS, String(nowMs));
 
+  // 3. Smart Compaction: Auto-purge files older than 7 most recent backups
+  await cleanUpOldBackups(token, folderId, MAX_BACKUPS_TO_RETAIN);
+
   return {
     filename,
     fileId: fileJson.id
   };
+}
+
+async function cleanUpOldBackups(token: string, folderId: string | null, keepCount = MAX_BACKUPS_TO_RETAIN) {
+  if (!folderId) return;
+
+  try {
+    const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+      `'${folderId}' in parents and trashed = false`
+    )}&orderBy=createdTime desc&fields=files(id, name, createdTime)`;
+
+    const res = await fetch(searchUrl, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const files = data.files || [];
+
+    if (files.length > keepCount) {
+      const filesToDelete = files.slice(keepCount);
+      for (const f of filesToDelete) {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        console.log(`Smart Cleanup: Purged old Google Drive backup ${f.name} (${f.id})`);
+      }
+    }
+  } catch (e) {
+    console.warn('Smart backup cleanup error:', e);
+  }
 }
 
 async function getOrCreateBackupFolder(token: string): Promise<string | null> {
