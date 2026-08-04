@@ -4,6 +4,7 @@ import { db, WorkoutSet, Exercise, Category } from '../db';
 import { Plus, Check, Trash2, Dumbbell, Flame, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell, Square } from 'lucide-react';
 import { checkAndCelebratePR } from '../utils/prCalculator';
 import { ExerciseSelectorView } from './ExerciseSelectorView';
+import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
 
 interface WorkoutLogViewProps {
   selectedDate: string;
@@ -267,6 +268,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     const exInfo = exercises?.find((e) => e.id === activeExerciseId);
     const isCardio = exInfo?.isCardio || false;
     const exerciseName = sets[0]?.exerciseName || exInfo?.name || 'Exercise';
+    const badgeStyle = getCategoryBadgeStyle(exInfo?.categoryName, exInfo?.categoryId);
 
     return (
       <div className="max-w-3xl mx-auto px-4 py-4 pb-32">
@@ -291,12 +293,18 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
 
         {/* Exercise Header Details */}
         <div className="bg-surface border border-surfaceBorder rounded-2xl p-4 mb-4 flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30">
-              {exInfo?.categoryName || 'General'}
-            </span>
-            <h2 className="text-2xl font-black text-white mt-1">{exerciseName}</h2>
+          <div className="flex items-center gap-3.5">
+            <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${badgeStyle}`}>
+              <CategoryIcon categoryName={exInfo?.categoryName} categoryId={exInfo?.categoryId} size="lg" />
+            </div>
+            <div>
+              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30">
+                {exInfo?.categoryName || 'General'}
+              </span>
+              <h2 className="text-2xl font-black text-white mt-0.5">{exerciseName}</h2>
+            </div>
           </div>
+
           <div className="text-right">
             <span className="text-xs font-bold text-slate-400">
               {sets.filter((s) => s.isCompleted).length} / {sets.length} Sets Done
@@ -557,6 +565,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
             const exInfo = exercises?.find((e) => e.id === exerciseId);
             const completedCount = sets.filter((s) => s.isCompleted).length;
             const maxW = Math.max(...sets.map((s) => s.weight || 0));
+            const badgeStyle = getCategoryBadgeStyle(exInfo?.categoryName, exInfo?.categoryId);
 
             return (
               <button
@@ -565,8 +574,8 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                 className="w-full text-left bg-surface border border-surfaceBorder hover:border-brand-500/50 rounded-2xl p-4 flex items-center justify-between transition group shadow-md"
               >
                 <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-card border border-surfaceBorder flex items-center justify-center text-brand-400 group-hover:bg-brand-600 group-hover:text-white transition">
-                    <Dumbbell className="w-5 h-5 transform -rotate-45" />
+                  <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition ${badgeStyle}`}>
+                    <CategoryIcon categoryName={exInfo?.categoryName} categoryId={exInfo?.categoryId} size="md" />
                   </div>
                   <div>
                     <div className="font-bold text-white text-base group-hover:text-brand-400 transition flex items-center gap-2">

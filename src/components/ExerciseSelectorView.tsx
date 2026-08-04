@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Category, Exercise } from '../db';
-import { ArrowLeft, Search, Plus, Dumbbell, ChevronRight, Activity } from 'lucide-react';
+import { ArrowLeft, Search, Plus, ChevronRight } from 'lucide-react';
+import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
 
 interface ExerciseSelectorViewProps {
   selectedCategory: Category | null;
@@ -102,9 +103,10 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
             <span className="text-xs font-bold text-slate-400">{categories?.length || 0} Muscle Groups</span>
           </div>
 
-          <div className="space-y-2 mb-6">
+          <div className="space-y-2.5 mb-6">
             {categories?.map((cat) => {
               const exCount = exercises?.filter((e) => e.categoryId === cat.id).length || 0;
+              const badgeStyle = getCategoryBadgeStyle(cat.name, cat.id);
               return (
                 <button
                   key={cat.id}
@@ -112,11 +114,11 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
                   className="w-full text-left bg-surface border border-surfaceBorder hover:border-brand-500/50 rounded-2xl p-4 flex items-center justify-between transition group shadow-md"
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-card border border-surfaceBorder flex items-center justify-center text-brand-400 group-hover:bg-brand-600 group-hover:text-white transition">
-                      {cat.isCardio ? <Activity className="w-5 h-5" /> : <Dumbbell className="w-5 h-5 transform -rotate-45" />}
+                    <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center transition shadow-md ${badgeStyle}`}>
+                      <CategoryIcon categoryName={cat.name} categoryId={cat.id} size="lg" />
                     </div>
                     <div>
-                      <div className="font-bold text-white text-base group-hover:text-brand-400 transition">
+                      <div className="font-extrabold text-white text-base group-hover:text-brand-400 transition">
                         {cat.name}
                       </div>
                       <div className="text-xs text-slate-400 font-semibold mt-0.5">
@@ -149,10 +151,13 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
         <div>
           <div className="flex items-center justify-between mb-3 px-1">
             <div>
-              <h2 className="text-lg font-black text-white">
-                {selectedCategory ? `${selectedCategory.name} Exercises` : 'Search Results'}
+              <h2 className="text-lg font-black text-white flex items-center gap-2">
+                {selectedCategory && (
+                  <CategoryIcon categoryName={selectedCategory.name} categoryId={selectedCategory.id} size="md" />
+                )}
+                <span>{selectedCategory ? `${selectedCategory.name} Exercises` : 'Search Results'}</span>
               </h2>
-              <p className="text-xs text-slate-400">Tap an exercise to add it to today's workout</p>
+              <p className="text-xs text-slate-400 mt-0.5">Tap an exercise to add it to today's workout</p>
             </div>
 
             <button
@@ -166,42 +171,45 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
 
           <div className="space-y-2 mb-6">
             {filteredExercises && filteredExercises.length > 0 ? (
-              filteredExercises.map((ex) => (
-                <button
-                  key={ex.id}
-                  onClick={() => onSelectExercise(ex)}
-                  className="w-full text-left bg-surface border border-surfaceBorder hover:border-brand-500/50 rounded-2xl p-4 flex items-center justify-between transition group shadow-md"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-card border border-surfaceBorder flex items-center justify-center text-brand-400 group-hover:bg-brand-600 group-hover:text-white transition">
-                      {ex.isCardio ? <Activity className="w-5 h-5" /> : <Dumbbell className="w-5 h-5 transform -rotate-45" />}
-                    </div>
-                    <div>
-                      <div className="font-bold text-white text-base group-hover:text-brand-400 transition">
-                        {ex.name}
+              filteredExercises.map((ex) => {
+                const badgeStyle = getCategoryBadgeStyle(ex.categoryName, ex.categoryId);
+                return (
+                  <button
+                    key={ex.id}
+                    onClick={() => onSelectExercise(ex)}
+                    className="w-full text-left bg-surface border border-surfaceBorder hover:border-brand-500/50 rounded-2xl p-4 flex items-center justify-between transition group shadow-md"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition ${badgeStyle}`}>
+                        <CategoryIcon categoryName={ex.categoryName} categoryId={ex.categoryId} size="md" />
                       </div>
-                      <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-                        <span className="font-semibold">{ex.categoryName}</span>
-                        {ex.primaryMuscle && (
-                          <>
-                            <span>•</span>
-                            <span>{ex.primaryMuscle}</span>
-                          </>
-                        )}
-                        {ex.isCustom && (
-                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400">
-                            Custom
-                          </span>
-                        )}
+                      <div>
+                        <div className="font-bold text-white text-base group-hover:text-brand-400 transition">
+                          {ex.name}
+                        </div>
+                        <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                          <span className="font-semibold">{ex.categoryName}</span>
+                          {ex.primaryMuscle && (
+                            <>
+                              <span>•</span>
+                              <span>{ex.primaryMuscle}</span>
+                            </>
+                          )}
+                          {ex.isCustom && (
+                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400">
+                              Custom
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold shadow-md shadow-brand-600/20 group-hover:scale-105 transition">
-                    <Plus className="w-4 h-4 stroke-[3]" />
-                  </div>
-                </button>
-              ))
+                    <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold shadow-md shadow-brand-600/20 group-hover:scale-105 transition">
+                      <Plus className="w-4 h-4 stroke-[3]" />
+                    </div>
+                  </button>
+                );
+              })
             ) : (
               <div className="text-center py-12 bg-surface/50 border border-surfaceBorder rounded-2xl">
                 <p className="text-slate-400 text-sm mb-4">No exercises found matching "{searchQuery}"</p>

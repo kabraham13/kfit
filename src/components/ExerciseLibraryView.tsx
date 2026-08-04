@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { Plus, Search, Dumbbell, Activity, FolderPlus, History } from 'lucide-react';
+import { Plus, Search, FolderPlus, History } from 'lucide-react';
+import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
 
 interface ExerciseLibraryViewProps {
   onSelectExerciseHistory: (exerciseId: string) => void;
@@ -88,48 +89,52 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
               selectedCategory === cat.id ? 'bg-brand-600 text-white shadow-md' : 'bg-surface border border-surfaceBorder text-slate-400'
             }`}
           >
-            {cat.name}
+            <CategoryIcon categoryName={cat.name} categoryId={cat.id} size="sm" />
+            <span>{cat.name}</span>
           </button>
         ))}
       </div>
 
       <div className="space-y-2">
-        {filteredExercises?.map((ex) => (
-          <div
-            key={ex.id}
-            className="p-3.5 rounded-2xl bg-surface border border-surfaceBorder hover:border-brand-500/40 flex items-center justify-between transition group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-card border border-surfaceBorder flex items-center justify-center text-brand-400">
-                {ex.isCardio ? <Activity className="w-5 h-5" /> : <Dumbbell className="w-5 h-5 transform -rotate-45" />}
-              </div>
-              <div>
-                <div className="font-bold text-white group-hover:text-brand-400 transition flex items-center gap-2">
-                  <span>{ex.name}</span>
-                  {ex.isCustom && (
-                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-400 border border-brand-500/30">
-                      Custom
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-slate-400">{ex.categoryName}</div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => onSelectExerciseHistory(ex.id)}
-              className="p-2 rounded-xl bg-card hover:bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1 text-xs font-semibold"
-              title="View History & PRs"
+        {filteredExercises?.map((ex) => {
+          const badgeStyle = getCategoryBadgeStyle(ex.categoryName, ex.categoryId);
+          return (
+            <div
+              key={ex.id}
+              className="p-3.5 rounded-2xl bg-surface border border-surfaceBorder hover:border-brand-500/40 flex items-center justify-between transition group"
             >
-              <History className="w-4 h-4 text-brand-400" />
-              <span className="hidden sm:inline">History</span>
-            </button>
-          </div>
-        ))}
+              <div className="flex items-center gap-3.5">
+                <div className={`w-9 h-9 rounded-xl border flex items-center justify-center transition ${badgeStyle}`}>
+                  <CategoryIcon categoryName={ex.categoryName} categoryId={ex.categoryId} size="md" />
+                </div>
+                <div>
+                  <div className="font-bold text-white group-hover:text-brand-400 transition flex items-center gap-2">
+                    <span>{ex.name}</span>
+                    {ex.isCustom && (
+                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-400 border border-brand-500/30">
+                        Custom
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-400">{ex.categoryName}</div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => onSelectExerciseHistory(ex.id)}
+                className="p-2 rounded-xl bg-card hover:bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1 text-xs font-semibold"
+                title="View History & PRs"
+              >
+                <History className="w-4 h-4 text-brand-400" />
+                <span className="hidden sm:inline">History</span>
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {isAddModalOpen && (
