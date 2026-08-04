@@ -4,6 +4,8 @@ const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const STORAGE_KEY_TOKEN = 'kfit_gdrive_token';
 const STORAGE_KEY_USER = 'kfit_gdrive_user';
 const STORAGE_KEY_LAST_BACKUP = 'kfit_gdrive_last_backup';
+const STORAGE_KEY_LAST_BACKUP_MS = 'kfit_gdrive_last_backup_ms';
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 export interface GoogleDriveStatus {
   isConnected: boolean;
@@ -97,6 +99,7 @@ export function disconnectGoogleDrive() {
   localStorage.removeItem(STORAGE_KEY_TOKEN);
   localStorage.removeItem(STORAGE_KEY_USER);
   localStorage.removeItem(STORAGE_KEY_LAST_BACKUP);
+  localStorage.removeItem(STORAGE_KEY_LAST_BACKUP_MS);
   localStorage.setItem('kfit_gdrive_autobackup', 'false');
 }
 
@@ -160,8 +163,11 @@ export async function uploadBackupToGoogleDrive(tokenOverride?: string): Promise
   }
 
   const fileJson = await res.json();
+  const nowMs = Date.now();
   const nowDisplay = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString();
+  
   localStorage.setItem(STORAGE_KEY_LAST_BACKUP, nowDisplay);
+  localStorage.setItem(STORAGE_KEY_LAST_BACKUP_MS, String(nowMs));
 
   return {
     filename,
@@ -212,16 +218,24 @@ async function getOrCreateBackupFolder(token: string): Promise<string | null> {
 }
 
 /**
- * Trigger background auto-backup if enabled
+ * Trigger background auto-backup if enabled (24-hour daily frequency)
  */
-export async function triggerAutoBackupIfEnabled() {
+export async function triggerAutoBackupIfEnabled(force = false) {
   const status = getStoredGDriveStatus();
-  if (status.isConnected && status.autoBackupEnabled) {
+  if (!status.isConnected || !status.autoBackupEnabled) return;
+
+  const lastBackupMs = Number(localStorage.getItem(STORAGE_KEY_LAST_BACKUP_MS) || '0');
+  const now = Date.now();
+
+  if (force || now - lastBackupMs >= TWENTY_FOUR_HOURS_MS) {
     try {
       await uploadBackupToGoogleDrive();
-      console.log('Auto-backup to Google Drive completed successfully.');
+      console.log('24-hour daily auto-backup to Google Drive completed successfully.');
     } catch (e) {
       console.warn('Auto-backup background sync warning:', e);
     }
+  } else {
+    const hoursLeft = ((TWENTY_FOUR_HOURS_MS - (now - lastBackupMs)) / (1000 * 60 * 60)).toFixed(1);
+    console.log(`Auto-backup skipped: Next daily sync in ${hoursLeft} hours.`);
   }
 }
