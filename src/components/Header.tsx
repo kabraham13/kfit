@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dumbbell, Settings, Calendar, ChevronLeft, ChevronRight, Bell, Pause, Play, Square } from 'lucide-react';
+import { MonthCalendarModal } from './MonthCalendarModal';
 
 interface HeaderProps {
   activeTab: 'workout' | 'library' | 'history' | 'settings';
@@ -22,6 +23,8 @@ export const Header: React.FC<HeaderProps> = ({
   onPauseToggleTimer,
   onCloseTimer
 }) => {
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
   const shiftDate = (days: number) => {
     const d = new Date(selectedDate + 'T00:00:00');
     d.setDate(d.getDate() + days);
@@ -65,16 +68,14 @@ export const Header: React.FC<HeaderProps> = ({
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <label className="relative flex items-center gap-1.5 px-2 cursor-pointer text-xs sm:text-sm font-semibold text-slate-200 hover:text-brand-400 transition">
+            <button
+              onClick={() => setIsCalendarOpen(true)}
+              className="flex items-center gap-1.5 px-2 text-xs sm:text-sm font-semibold text-slate-200 hover:text-brand-400 transition"
+              title="Open Month Calendar"
+            >
               <Calendar className="w-3.5 h-3.5 text-brand-400 shrink-0" />
               <span>{isToday ? 'Today' : formatDateDisplay(selectedDate)}</span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-            </label>
+            </button>
 
             <button
               onClick={() => shiftDate(1)}
@@ -99,6 +100,15 @@ export const Header: React.FC<HeaderProps> = ({
           <Settings className="w-5 h-5" />
         </button>
       </div>
+
+      {/* Full Month Calendar View Modal */}
+      {isCalendarOpen && (
+        <MonthCalendarModal
+          selectedDate={selectedDate}
+          onSelectDate={(d) => setSelectedDate(d)}
+          onClose={() => setIsCalendarOpen(false)}
+        />
+      )}
 
       {/* Active Rest Timer Top Bar (Ticking down when navigating outside or back) */}
       {timerSecondsLeft !== null && (

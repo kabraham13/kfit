@@ -153,6 +153,7 @@ export function App() {
         {activeTab === 'workout' && (
           <WorkoutLogView
             selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
             onStartTimer={handleStartTimer}
             weightUnit={weightUnit}
             onSelectExerciseHistory={handleSelectExerciseHistory}

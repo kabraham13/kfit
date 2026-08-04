@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, WorkoutSet, Exercise, Category } from '../db';
-import { Plus, Check, Trash2, Dumbbell, Flame, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell, Square } from 'lucide-react';
+import { Plus, Check, Trash2, Dumbbell, Flame, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell, Square, Calendar as CalendarIcon } from 'lucide-react';
 import { checkAndCelebratePR } from '../utils/prCalculator';
 import { ExerciseSelectorView } from './ExerciseSelectorView';
 import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
+import { MonthCalendarModal } from './MonthCalendarModal';
 
 interface WorkoutLogViewProps {
   selectedDate: string;
+  onSelectDate: (dateStr: string) => void;
   onStartTimer: (seconds?: number) => void;
   weightUnit: string;
   onSelectExerciseHistory: (exerciseId: string) => void;
@@ -28,6 +30,7 @@ type LogSubView =
 
 export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   selectedDate,
+  onSelectDate,
   onStartTimer,
   weightUnit,
   onSelectExerciseHistory,
@@ -40,6 +43,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   onCloseTimer
 }) => {
   const [subView, setSubView] = useState<LogSubView>({ type: 'overview' });
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Single Central PopState Listener for Log Sub-Views
   useEffect(() => {
@@ -506,18 +510,29 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
               </p>
             </div>
           </div>
+
+          {/* Month Calendar Quick Trigger Button */}
+          <button
+            onClick={() => setIsCalendarOpen(true)}
+            className="px-3 py-2 rounded-xl bg-surface border border-surfaceBorder hover:border-brand-500/50 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition shadow-md"
+            title="Open Month Calendar"
+          >
+            <CalendarIcon className="w-4 h-4 text-brand-400" />
+            <span>Month View</span>
+          </button>
         </div>
 
         {/* Weekly Activity Day Strip */}
         <div className="grid grid-cols-7 gap-1.5 pt-2 border-t border-surfaceBorder/60">
           {weekDays.map((day) => (
-            <div
+            <button
               key={day.dateStr}
+              onClick={() => onSelectDate(day.dateStr)}
               className={`p-2 rounded-2xl flex flex-col items-center justify-center transition border ${
                 day.isSelected
-                  ? 'bg-brand-600/20 border-brand-500 text-white shadow-md'
+                  ? 'bg-brand-600/20 border-brand-500 text-white shadow-md scale-105'
                   : day.hasWorkout
-                  ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
+                  ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200 hover:border-emerald-400'
                   : 'bg-card/40 border-surfaceBorder/60 text-slate-400 hover:border-slate-700'
               }`}
             >
@@ -531,10 +546,19 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-700/60" />
                 )}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+
+      {/* Month Calendar View Modal */}
+      {isCalendarOpen && (
+        <MonthCalendarModal
+          selectedDate={selectedDate}
+          onSelectDate={onSelectDate}
+          onClose={() => setIsCalendarOpen(false)}
+        />
+      )}
 
       {/* Daily Exercises List Overview */}
       {Array.from(exerciseGroupMap.entries()).length === 0 ? (
