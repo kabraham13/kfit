@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dumbbell, Settings, Calendar, ChevronLeft, ChevronRight, Bell, Pause, Play, X } from 'lucide-react';
+import { Dumbbell, Settings, Calendar, ChevronLeft, ChevronRight, Bell, Pause, Play, Square } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'workout' | 'library' | 'history' | 'settings';
@@ -111,10 +111,10 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={onPauseToggleTimer}
-              className={`p-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
                 isTimerActive
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                   : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
@@ -126,10 +126,11 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={onCloseTimer}
-              className="p-1 text-slate-400 hover:text-white rounded-lg transition"
-              title="Dismiss Timer"
+              className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1 transition"
+              title="Stop & Delete Timer"
             >
-              <X className="w-4 h-4" />
+              <Square className="w-3.5 h-3.5 fill-current" />
+              <span>Stop</span>
             </button>
           </div>
         </div>
