@@ -1,11 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
-  <rect width="100" height="100" rx="28" fill="#090A0F"/>
-  <rect width="100" height="100" rx="28" fill="url(#grad)" fill-opacity="0.2"/>
-  <path d="M25 65L65 25M25 65L35 75M65 25L75 35M20 50L50 20M50 80L80 50" stroke="#3B82F6" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2563EB"/>
-      <stop offset="1" stop-color="#8B5CF6"/>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#6366f1" />
     </linearGradient>
   </defs>
+
+  <!-- Squircle Rounded Rect Background -->
+  <rect x="32" y="32" width="448" height="448" rx="120" ry="120" fill="url(#headerGrad)" />
+
+  <!-- Rotated Dumbbell Group -->
+  <g transform="translate(256, 256) rotate(-45) translate(-256, -256)">
+    <!-- Main Bar -->
+    <rect x="136" y="240" width="240" height="32" rx="16" fill="#ffffff" />
+    
+    <!-- Left Outer Weight Plate -->
+    <rect x="136" y="192" width="28" height="128" rx="14" fill="#ffffff" />
+    <!-- Left Inner Weight Plate -->
+    <rect x="180" y="208" width="24" height="96" rx="12" fill="#ffffff" />
+
+    <!-- Right Outer Weight Plate -->
+    <rect x="348" y="192" width="28" height="128" rx="14" fill="#ffffff" />
+    <!-- Right Inner Weight Plate -->
+    <rect x="308" y="208" width="24" height="96" rx="12" fill="#ffffff" />
+  </g>
 </svg>
