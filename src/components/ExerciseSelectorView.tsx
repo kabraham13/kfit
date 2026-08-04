@@ -124,7 +124,7 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
         )}
       </div>
 
-      {/* STEP 1: CATEGORY SELECTION GRID */}
+      {/* STEP 1: CATEGORY SELECTION VERTICAL LIST */}
       {!selectedCategory && !searchQuery ? (
         <div>
           <div className="flex items-center justify-between mb-3 px-1">
@@ -132,29 +132,31 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
             <span className="text-xs font-bold text-slate-400">{categories?.length || 0} Muscle Groups</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+          <div className="space-y-2 mb-6">
             {categories?.map((cat) => {
               const exCount = exercises?.filter((e) => e.categoryId === cat.id).length || 0;
               return (
                 <button
                   key={cat.id}
                   onClick={() => handleSelectCategory(cat)}
-                  className="bg-surface hover:bg-card border border-surfaceBorder hover:border-brand-500/50 rounded-2xl p-4 text-left transition group shadow-md flex flex-col justify-between h-32"
+                  className="w-full text-left bg-surface border border-surfaceBorder hover:border-brand-500/50 rounded-2xl p-4 flex items-center justify-between transition group shadow-md"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 flex items-center justify-center group-hover:bg-brand-600 group-hover:text-white transition">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-card border border-surfaceBorder flex items-center justify-center text-brand-400 group-hover:bg-brand-600 group-hover:text-white transition">
                       {cat.isCardio ? <Activity className="w-5 h-5" /> : <Dumbbell className="w-5 h-5 transform -rotate-45" />}
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white transition" />
+                    <div>
+                      <div className="font-bold text-white text-base group-hover:text-brand-400 transition">
+                        {cat.name}
+                      </div>
+                      <div className="text-xs text-slate-400 font-semibold mt-0.5">
+                        {exCount} {exCount === 1 ? 'exercise' : 'exercises'}
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <div className="font-extrabold text-white text-base group-hover:text-brand-400 transition">
-                      {cat.name}
-                    </div>
-                    <div className="text-xs text-slate-400 font-semibold mt-0.5">
-                      {exCount} {exCount === 1 ? 'exercise' : 'exercises'}
-                    </div>
+                  <div className="w-8 h-8 rounded-xl bg-card border border-surfaceBorder flex items-center justify-center text-slate-400 group-hover:text-white group-hover:border-brand-500/40 transition">
+                    <ChevronRight className="w-4 h-4" />
                   </div>
                 </button>
               );
