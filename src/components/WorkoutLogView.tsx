@@ -6,6 +6,7 @@ import { checkAndCelebratePR } from '../utils/prCalculator';
 import { ExerciseSelectorView } from './ExerciseSelectorView';
 import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
 import { MonthCalendarModal } from './MonthCalendarModal';
+import { triggerAutoBackupIfEnabled } from '../utils/googleDriveBackup';
 
 interface WorkoutLogViewProps {
   selectedDate: string;
@@ -235,6 +236,9 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
       if (set.weight > 0 && set.reps > 0) {
         await checkAndCelebratePR(set.exerciseId, set.weight, set.reps, set.id);
       }
+
+      // Silent background auto-backup to Google Drive if linked & enabled
+      triggerAutoBackupIfEnabled();
     }
   };
 

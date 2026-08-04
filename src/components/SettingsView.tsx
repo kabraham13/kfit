@@ -1,7 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../db';
 import { parseAndImportFitNotesCSV, exportFitNotesCSV, CSVImportResult } from '../utils/csvHandler';
-import { Upload, Download, Settings, Smartphone, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import {
+  Upload,
+  Download,
+  Settings,
+  Smartphone,
+  CheckCircle,
+  AlertCircle,
+  RefreshCw,
+  Cloud,
+  CloudUpload,
+  Link,
+  Unlink,
+  Check,
+  Key
+} from 'lucide-react';
+import {
+  getStoredGDriveStatus,
+  initiateGoogleDriveAuth,
+  disconnectGoogleDrive,
+  setAutoBackupEnabled,
+  uploadBackupToGoogleDrive,
+  GoogleDriveStatus
+} from '../utils/googleDriveBackup';
 
 interface SettingsViewProps {
   weightUnit: 'lbs' | 'kg';
@@ -18,6 +40,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<CSVImportResult | null>(null);
+
+  // Google Drive State
+  const [gdriveStatus, setGdriveStatus] = useState<GoogleDriveStatus>(getStoredGDriveStatus());
+  const [isDriveBackingUp, setIsDriveBackingUp] = useState(false);
+  const [driveBackupSuccess, setDriveBackupSuccess] = useState<string | null>(null);
+  const [driveBackupError, setDriveBackupError] = useState<string | null>(null);
+  const [customClientId, setCustomClientId] = useState<string>(
+    localStorage.getItem('kfit_custom_client_id') || ''
+  );
+  const [showClientIdInput, setShowClientIdInput] = useState(false);
+
+  useEffect(() => {
+    setGdriveStatus(getStoredGDriveStatus());
+  }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -60,16 +96,193 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     await db.userSettings.update('default', { defaultRestTimerSeconds: sec });
   };
 
+  // Google Drive Handlers
+  const handleConnectDrive = async () => {
+    setDriveBackupError(null);
+    try {
+      await initiateGoogleDriveAuth(customClientId.trim() || undefined);
+      setGdriveStatus(getStoredGDriveStatus());
+    } catch (err: any) {
+      setDriveBackupError(err.message || 'Failed to connect Google Drive.');
+    }
+  };
+
+  const handleDisconnectDrive = () => {
+    disconnectGoogleDrive();
+    setGdriveStatus(getStoredGDriveStatus());
+    setDriveBackupSuccess(null);
+  };
+
+  const handleToggleAutoBackup = (enabled: boolean) => {
+    setAutoBackupEnabled(enabled);
+    setGdriveStatus(getStoredGDriveStatus());
+  };
+
+  const handleBackupToDriveNow = async () => {
+    setIsDriveBackingUp(true);
+    setDriveBackupError(null);
+    setDriveBackupSuccess(null);
+
+    try {
+      const res = await uploadBackupToGoogleDrive();
+      setDriveBackupSuccess(`Uploaded ${res.filename} to kfit_backups folder!`);
+      setGdriveStatus(getStoredGDriveStatus());
+    } catch (err: any) {
+      setDriveBackupError(err.message || 'Google Drive backup failed.');
+    } finally {
+      setIsDriveBackingUp(false);
+    }
+  };
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-4 pb-32 space-y-6">
+    <div className="max-w-3xl mx-auto px-4 py-4 pb-32 space-y-6 animate-fade-in">
+      {/* Google Drive Automatic Backup Integration Card */}
+      <div className="bg-gradient-to-br from-[#12141d] via-[#161a29] to-[#12141d] border border-brand-500/30 rounded-3xl p-5 shadow-2xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center shadow-lg shadow-brand-500/10">
+              <Cloud className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-black text-white">Google Drive Backup</h3>
+                {gdriveStatus.isConnected ? (
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Linked
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                    Not Linked
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Auto-sync CSV backups to your personal Google Drive
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowClientIdInput(!showClientIdInput)}
+            className="p-2 text-slate-400 hover:text-white bg-surface rounded-xl border border-surfaceBorder transition"
+            title="Configure OAuth Client ID"
+          >
+            <Key className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Custom OAuth Client ID Config (Optional) */}
+        {showClientIdInput && (
+          <div className="p-3 bg-[#090a0f] border border-surfaceBorder rounded-2xl space-y-2">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Google OAuth Client ID (Optional)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="794719238122-xxxx.apps.googleusercontent.com"
+                value={customClientId}
+                onChange={(e) => {
+                  setCustomClientId(e.target.value);
+                  localStorage.setItem('kfit_custom_client_id', e.target.value);
+                }}
+                className="flex-1 bg-[#12141d] border border-surfaceBorder text-white text-xs px-3 py-2 rounded-xl outline-none font-mono"
+              />
+              <span className="text-[10px] text-slate-400">Saved</span>
+            </div>
+          </div>
+        )}
+
+        {/* Google Drive Status & Controls */}
+        {gdriveStatus.isConnected ? (
+          <div className="space-y-3 pt-1">
+            <div className="p-4 bg-card border border-surfaceBorder rounded-2xl flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-slate-300">Automatic CSV Auto-Backup</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">
+                  Automatically syncs your CSV after workouts
+                </div>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={gdriveStatus.autoBackupEnabled}
+                  onChange={(e) => handleToggleAutoBackup(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={handleBackupToDriveNow}
+                disabled={isDriveBackingUp}
+                className="py-3 px-4 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 transition disabled:opacity-50"
+              >
+                {isDriveBackingUp ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CloudUpload className="w-4 h-4" />
+                )}
+                <span>{isDriveBackingUp ? 'Uploading to Drive...' : 'Backup to Drive Now'}</span>
+              </button>
+
+              <button
+                onClick={handleDisconnectDrive}
+                className="py-3 px-4 bg-surface border border-surfaceBorder hover:border-rose-500/40 text-slate-300 hover:text-rose-400 font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition"
+              >
+                <Unlink className="w-4 h-4" />
+                <span>Disconnect Google Drive</span>
+              </button>
+            </div>
+
+            {gdriveStatus.lastBackupTime && (
+              <div className="text-[11px] text-slate-400 text-center font-medium">
+                Last backed up to Drive: <span className="text-emerald-400 font-bold">{gdriveStatus.lastBackupTime}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="pt-1 text-center space-y-3">
+            <p className="text-xs text-slate-300 max-w-md mx-auto">
+              Link your Google Drive account to create automatic offline CSV backups inside a dedicated <span className="font-bold text-brand-400">kfit_backups</span> folder.
+            </p>
+            <button
+              onClick={handleConnectDrive}
+              className="py-3.5 px-6 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs rounded-2xl inline-flex items-center justify-center gap-2 shadow-xl shadow-brand-600/30 transition"
+            >
+              <Link className="w-4 h-4" />
+              <span>Connect Google Drive Account</span>
+            </button>
+          </div>
+        )}
+
+        {/* Feedback Messages */}
+        {driveBackupSuccess && (
+          <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-3 flex items-center gap-2 text-xs font-semibold text-emerald-200">
+            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{driveBackupSuccess}</span>
+          </div>
+        )}
+        {driveBackupError && (
+          <div className="bg-rose-950/40 border border-rose-500/40 rounded-2xl p-3 flex items-center gap-2 text-xs font-semibold text-rose-200">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{driveBackupError}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Standard FitNotes Import / Export Section */}
       <div className="bg-surface border border-surfaceBorder rounded-3xl p-5 shadow-xl">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-2xl bg-brand-500/20 text-brand-400 flex items-center justify-center border border-brand-500/30">
             <Upload className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">FitNotes Backup Import & Export</h3>
-            <p className="text-xs text-slate-400">Import your FitNotes Google Drive CSV backups</p>
+            <h3 className="text-lg font-bold text-white">Manual CSV Import & Export</h3>
+            <p className="text-xs text-slate-400">Import or download FitNotes-compatible CSV files</p>
           </div>
         </div>
 
@@ -90,7 +303,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <span className="font-bold text-white text-sm">
               {isImporting ? 'Importing FitNotes CSV...' : 'Import FitNotes CSV Backup'}
             </span>
-            <span className="text-xs text-slate-400 mt-0.5">Select .csv from Google Drive or Storage</span>
+            <span className="text-xs text-slate-400 mt-0.5">Select .csv file to restore</span>
           </label>
 
           <button
@@ -98,8 +311,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             className="flex flex-col items-center justify-center p-4 rounded-2xl bg-card border border-surfaceBorder hover:border-brand-500/40 transition text-center group"
           >
             <Download className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition mb-2" />
-            <span className="font-bold text-white text-sm">Export Data to CSV</span>
-            <span className="text-xs text-slate-400 mt-0.5">Download full workout backup</span>
+            <span className="font-bold text-white text-sm">Download Local CSV</span>
+            <span className="text-xs text-slate-400 mt-0.5">Save backup to your device</span>
           </button>
         </div>
 
@@ -130,6 +343,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
       </div>
 
+      {/* Preferences Section */}
       <div className="bg-surface border border-surfaceBorder rounded-3xl p-5 shadow-xl space-y-5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
@@ -186,6 +400,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      {/* PWA Home Screen Instructions */}
       <div className="bg-surface border border-surfaceBorder rounded-3xl p-5 shadow-xl">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
