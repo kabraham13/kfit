@@ -1,18 +1,26 @@
 import React from 'react';
-import { Dumbbell, Settings, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Dumbbell, Settings, Calendar, ChevronLeft, ChevronRight, Bell, Pause, Play, X } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'workout' | 'library' | 'history' | 'settings';
   setActiveTab: (tab: 'workout' | 'library' | 'history' | 'settings') => void;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
+  timerSecondsLeft: number | null;
+  isTimerActive: boolean;
+  onPauseToggleTimer: () => void;
+  onCloseTimer: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   selectedDate,
-  setSelectedDate
+  setSelectedDate,
+  timerSecondsLeft,
+  isTimerActive,
+  onPauseToggleTimer,
+  onCloseTimer
 }) => {
   const shiftDate = (days: number) => {
     const d = new Date(selectedDate + 'T00:00:00');
@@ -25,6 +33,12 @@ export const Header: React.FC<HeaderProps> = ({
   const formatDateDisplay = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00');
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  const formatTimerTime = (secs: number) => {
+    const m = Math.floor(Math.max(0, secs) / 60);
+    const s = Math.max(0, secs) % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
   return (
@@ -85,6 +99,41 @@ export const Header: React.FC<HeaderProps> = ({
           <Settings className="w-5 h-5" />
         </button>
       </div>
+
+      {/* Active Rest Timer Top Bar (Ticking down when navigating outside or back) */}
+      {timerSecondsLeft !== null && (
+        <div className="bg-[#12141d] border-t border-brand-500/30 px-4 py-2 flex items-center justify-between text-xs font-mono">
+          <div className="flex items-center gap-2 font-bold text-white">
+            <Bell className="w-4 h-4 text-brand-400 animate-pulse" />
+            <span className="text-slate-400 uppercase tracking-wider text-[10px]">Rest Timer:</span>
+            <span className="text-sm font-black text-brand-400 font-mono">
+              {formatTimerTime(timerSecondsLeft)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={onPauseToggleTimer}
+              className={`p-1 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+                isTimerActive
+                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+              }`}
+            >
+              {isTimerActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+              <span>{isTimerActive ? 'Pause' : 'Resume'}</span>
+            </button>
+
+            <button
+              onClick={onCloseTimer}
+              className="p-1 text-slate-400 hover:text-white rounded-lg transition"
+              title="Dismiss Timer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

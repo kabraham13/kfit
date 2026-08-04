@@ -6,7 +6,6 @@ import { WorkoutLogView } from './components/WorkoutLogView';
 import { ExerciseLibraryView } from './components/ExerciseLibraryView';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
-import { RestTimerOverlay } from './components/RestTimerOverlay';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { playRestTimerChime, triggerTimerVibration, showTimerNotification } from './utils/timer';
 
@@ -98,12 +97,16 @@ export function App() {
       {/* Install PWA Prompt Banner */}
       <InstallPwaBanner />
 
-      {/* Top Header with Brand Title, Date Picker, and Settings Icon */}
+      {/* Top Header with Brand Title, Date Picker, Settings Icon, and Active Rest Timer Bar */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}
+        timerSecondsLeft={timerSecondsLeft}
+        isTimerActive={isTimerActive}
+        onPauseToggleTimer={handlePauseToggleTimer}
+        onCloseTimer={handleCloseTimer}
       />
 
       {/* Main View Router */}
@@ -143,19 +146,6 @@ export function App() {
           />
         )}
       </main>
-
-      {/* Floating Rest Timer (Only shown when outside workout tab while timer active) */}
-      {activeTab !== 'workout' && timerSecondsLeft !== null && (
-        <RestTimerOverlay
-          secondsLeft={timerSecondsLeft}
-          totalSeconds={totalTimerSeconds}
-          isActive={isTimerActive}
-          onPauseToggle={handlePauseToggleTimer}
-          onReset={handleResetTimer}
-          onAddSeconds={handleAddTimerSeconds}
-          onClose={handleCloseTimer}
-        />
-      )}
 
       {/* Fixed Bottom Navigation Bar */}
       <BottomNav
