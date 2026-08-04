@@ -37,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-1.5">
-                kfit <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 font-semibold border border-brand-500/30">PWA</span>
+                kfit
               </h1>
             </div>
           </div>

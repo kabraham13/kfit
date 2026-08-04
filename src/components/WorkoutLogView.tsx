@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, WorkoutSet, Exercise } from '../db';
-import { Plus, Check, Trash2, Dumbbell } from 'lucide-react';
+import { Plus, Check, Trash2, Dumbbell, Flame } from 'lucide-react';
 import { checkAndCelebratePR } from '../utils/prCalculator';
 
 interface WorkoutLogViewProps {
@@ -19,14 +19,18 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  // Fetch sets for selectedDate
   const workoutSets = useLiveQuery(
     () => db.workoutSets.where('date').equals(selectedDate).toArray(),
     [selectedDate]
   );
 
+  // Fetch all unique workout dates for streak and weekly tracker
+  const allLogs = useLiveQuery(() => db.workoutLogs.toArray());
   const categories = useLiveQuery(() => db.categories.toArray());
   const exercises = useLiveQuery(() => db.exercises.toArray());
 
+  // Group sets by exercise for selected date
   const exerciseGroupMap = new Map<string, WorkoutSet[]>();
   if (workoutSets) {
     for (const set of workoutSets) {
@@ -37,11 +41,63 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     }
   }
 
+  // Calculate total volume for the day
   const totalVolume = workoutSets
     ? workoutSets.reduce((sum, s) => (s.isCompleted && !s.distance ? sum + s.weight * s.reps : sum), 0)
     : 0;
 
-  const totalCompletedSets = workoutSets ? workoutSets.filter((s) => s.isCompleted).length : 0;
+  // Compute Active Workout Dates Set
+  const activeDatesSet = new Set<string>();
+  if (allLogs) {
+    for (const log of allLogs) {
+      activeDatesSet.add(log.date);
+    }
+  }
+
+  // Compute Current Streak (Consecutive days ending today/yesterday)
+  let currentStreak = 0;
+  const today = new Date();
+  let checkDate = new Date(today);
+  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+  // If today isn't logged yet, check starting from yesterday
+  if (!activeDatesSet.has(formatDate(checkDate))) {
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+
+  while (activeDatesSet.has(formatDate(checkDate))) {
+    currentStreak++;
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+
+  // Compute Week Days (Monday to Sunday) for Selected Date
+  const getWeekDays = (baseDateStr: string) => {
+    const d = new Date(baseDateStr + 'T00:00:00');
+    const dayOfWeek = d.getDay(); // 0 is Sun, 1 is Mon...
+    const distanceToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + distanceToMon);
+
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      const dateStr = formatDate(day);
+      week.push({
+        dateStr,
+        dayName: day.toLocaleDateString('en-US', { weekday: 'narrow' }),
+        dayNum: day.getDate(),
+        isToday: dateStr === formatDate(today),
+        isSelected: dateStr === selectedDate,
+        hasWorkout: activeDatesSet.has(dateStr)
+      });
+    }
+    return week;
+  };
+
+  const weekDays = getWeekDays(selectedDate);
+  const workoutsThisWeek = weekDays.filter((d) => d.hasWorkout).length;
 
   const addExerciseToDate = async (exercise: Exercise) => {
     const lastSessionSets = await db.workoutSets
@@ -104,6 +160,11 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     await db.workoutSets.update(set.id, { isCompleted: nextState });
 
     if (nextState) {
+      const logExists = await db.workoutLogs.get(selectedDate);
+      if (!logExists) {
+        await db.workoutLogs.add({ id: selectedDate, date: selectedDate });
+      }
+
       onStartTimer();
       if (set.weight > 0 && set.reps > 0) {
         await checkAndCelebratePR(set.exerciseId, set.weight, set.reps, set.id);
@@ -123,23 +184,69 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32">
-      <div className="bg-surface border border-surfaceBorder rounded-2xl p-4 mb-6 flex items-center justify-between shadow-lg">
-        <div>
-          <div className="text-xs uppercase font-bold text-slate-400 tracking-wider">Daily Summary</div>
-          <div className="text-xl font-black text-white mt-0.5">
-            {totalCompletedSets} {totalCompletedSets === 1 ? 'Set' : 'Sets'} Completed
+      {/* Upgraded Fitness Streak & Weekly Activity Dashboard */}
+      <div className="bg-gradient-to-br from-[#12141d] via-[#181b26] to-[#121829] border border-surfaceBorder rounded-3xl p-5 mb-6 shadow-xl relative overflow-hidden">
+        {/* Streak & Weekly Progress Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
+              <Flame className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-black text-white font-mono">
+                  {currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}
+                </span>
+                <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  🔥 Streak
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {workoutsThisWeek} {workoutsThisWeek === 1 ? 'workout' : 'workouts'} logged this week
+              </p>
+            </div>
+          </div>
+
+          <div className="text-right hidden sm:block">
+            <div className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Volume Today</div>
+            <div className="text-lg font-black text-brand-400 font-mono">
+              {totalVolume.toLocaleString()} <span className="text-xs font-normal text-slate-400">{weightUnit}</span>
+            </div>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-xs uppercase font-bold text-slate-400 tracking-wider">Total Volume</div>
-          <div className="text-xl font-black text-brand-400 font-mono mt-0.5">
-            {totalVolume.toLocaleString()} <span className="text-xs font-normal text-slate-400">{weightUnit}</span>
-          </div>
+
+        {/* Interactive Weekly Activity Day Strip */}
+        <div className="grid grid-cols-7 gap-1.5 pt-2 border-t border-surfaceBorder/60">
+          {weekDays.map((day) => (
+            <div
+              key={day.dateStr}
+              className={`p-2 rounded-2xl flex flex-col items-center justify-center transition border ${
+                day.isSelected
+                  ? 'bg-brand-600/20 border-brand-500 text-white shadow-md'
+                  : day.hasWorkout
+                  ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
+                  : 'bg-card/40 border-surfaceBorder/60 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <span className="text-[10px] font-bold uppercase opacity-75">{day.dayName}</span>
+              <span className="text-sm font-black mt-0.5 font-mono">{day.dayNum}</span>
+
+              {/* Workout Indicator Dot / Checkmark */}
+              <div className="mt-1">
+                {day.hasWorkout ? (
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
+                ) : (
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-700/60" />
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
+      {/* Logged Exercises List */}
       {Array.from(exerciseGroupMap.entries()).length === 0 ? (
-        <div className="text-center py-16 px-4 bg-surface/50 border border-surfaceBorder/60 rounded-3xl">
+        <div className="text-center py-14 px-4 bg-surface/50 border border-surfaceBorder/60 rounded-3xl">
           <div className="w-16 h-16 rounded-2xl bg-brand-500/10 text-brand-400 flex items-center justify-center mx-auto mb-4 border border-brand-500/20">
             <Dumbbell className="w-8 h-8 transform -rotate-45" />
           </div>
@@ -272,6 +379,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
         </div>
       )}
 
+      {/* Add Exercise Modal */}
       {isAddExerciseModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="bg-[#12141d] border border-surfaceBorder w-full max-w-lg rounded-t-3xl md:rounded-3xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
