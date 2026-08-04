@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, WorkoutSet, Exercise } from '../db';
 import { Plus, Check, Trash2, Dumbbell, Flame, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell, Square } from 'lucide-react';
@@ -35,6 +35,30 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   const [isAddExerciseModalOpen, setIsAddExerciseModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Sync active exercise state with Android native back button / swipe gesture
+  useEffect(() => {
+    if (activeExerciseId) {
+      window.history.pushState({ inExercise: true, exerciseId: activeExerciseId }, '');
+
+      const handlePopState = () => {
+        setActiveExerciseId(null);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [activeExerciseId]);
+
+  const handleCloseExerciseView = () => {
+    if (window.history.state && window.history.state.inExercise) {
+      window.history.back();
+    } else {
+      setActiveExerciseId(null);
+    }
+  };
 
   // Fetch sets for selectedDate
   const workoutSets = useLiveQuery(
@@ -214,7 +238,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
         {/* Back Navigation & Exercise Title Bar */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-surfaceBorder">
           <button
-            onClick={() => setActiveExerciseId(null)}
+            onClick={handleCloseExerciseView}
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface border border-surfaceBorder hover:bg-slate-800 text-slate-200 text-sm font-bold transition"
           >
             <ArrowLeft className="w-4 h-4 text-brand-400" />
@@ -402,7 +426,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveExerciseId(null)}
+            onClick={handleCloseExerciseView}
             className="py-3.5 rounded-2xl bg-surface border border-surfaceBorder text-slate-300 font-bold flex items-center justify-center gap-2 transition hover:bg-slate-800"
           >
             <ArrowLeft className="w-4 h-4" />
