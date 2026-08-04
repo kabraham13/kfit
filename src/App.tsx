@@ -43,20 +43,27 @@ export function App() {
 
   // Global Android Back Navigation & Tab Fallback Router
   useEffect(() => {
-    window.history.pushState({ tab: activeTab }, '');
+    // Set base app root anchor
+    if (!window.history.state || !window.history.state.tab) {
+      window.history.replaceState({ appRoot: true }, '');
+      window.history.pushState({ tab: activeTab }, '');
+    }
 
     const handlePopState = (e: PopStateEvent) => {
-      // If inside sub-views (In-Exercise or 2-Step Exercise Selector), let component popstate handle it
+      // If inside sub-views (In-Exercise or 2-Step Exercise Selector), let sub-views handle it
       if (e.state && (e.state.inExercise || e.state.addExercise)) {
+        return;
+      }
+
+      // If popstate returned to appRoot base anchor, show Exit Warning Modal
+      if (!e.state || e.state.appRoot) {
+        setShowExitModal(true);
         return;
       }
 
       // If on non-log tabs (library, history, settings), fallback to 'workout' (Log) tab
       if (activeTab !== 'workout') {
         setActiveTab('workout');
-      } else {
-        // Show Exit Confirmation Warning Modal on main Log tab
-        setShowExitModal(true);
       }
     };
 
@@ -129,7 +136,10 @@ export function App() {
       {/* Top Header with Brand Title, Date Picker, Settings Icon, and Active Rest Timer Bar */}
       <Header
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          window.history.pushState({ tab }, '');
+          setActiveTab(tab);
+        }}
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}
         timerSecondsLeft={timerSecondsLeft}
@@ -217,7 +227,10 @@ export function App() {
       {/* Fixed Bottom Navigation Bar */}
       <BottomNav
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          window.history.pushState({ tab }, '');
+          setActiveTab(tab);
+        }}
       />
     </div>
   );
