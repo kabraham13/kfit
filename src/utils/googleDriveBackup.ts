@@ -30,11 +30,11 @@ export function getStoredGDriveStatus(): GoogleDriveStatus {
  */
 export function initiateGoogleDriveAuth(clientId?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Standard default OAuth Client ID or user-provided Client ID
+    // Baked-in default OAuth Client ID or user-provided Client ID
     const effectiveClientId =
       clientId ||
       (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID ||
-      '794719238122-demo.apps.googleusercontent.com';
+      '727165202795-3e4em19rp6c5neeos6sk92t5dv66i54r.apps.googleusercontent.com';
 
     const redirectUri = window.location.origin + window.location.pathname;
 

@@ -14,7 +14,8 @@ import {
   Unlink,
   Check,
   Key,
-  Share2
+  Share2,
+  Link as LinkIcon
 } from 'lucide-react';
 import {
   getStoredGDriveStatus,
@@ -123,14 +124,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Google Drive API Handlers
   const handleConnectDrive = async () => {
     setDriveBackupError(null);
-    if (!customClientId.trim()) {
-      setShowClientIdInput(true);
-      setDriveBackupError('Please enter your Google Cloud OAuth Client ID below to connect your account.');
-      return;
-    }
-
     try {
-      await initiateGoogleDriveAuth(customClientId.trim());
+      await initiateGoogleDriveAuth(customClientId.trim() || undefined);
       setGdriveStatus(getStoredGDriveStatus());
       setDriveBackupError(null);
     } catch (err: any) {
@@ -202,6 +197,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
 
+        {/* Connect Google Drive Button (When not connected) */}
+        {!gdriveStatus.isConnected && (
+          <div className="p-4 bg-card border border-surfaceBorder rounded-2xl text-center space-y-3">
+            <p className="text-xs text-slate-300 max-w-md mx-auto">
+              Connect your Google Drive account to automatically sync CSV backups to a dedicated <span className="font-bold text-brand-400">kfit_backups</span> folder.
+            </p>
+            <button
+              onClick={handleConnectDrive}
+              className="py-3 px-6 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs rounded-2xl inline-flex items-center justify-center gap-2 shadow-xl shadow-brand-600/30 transition"
+            >
+              <LinkIcon className="w-4 h-4" />
+              <span>Connect Google Drive Account</span>
+            </button>
+          </div>
+        )}
+
         {/* 1-Tap Save to Drive via Android Native Share */}
         <div className="p-4 bg-card border border-surfaceBorder rounded-2xl space-y-2">
           <div className="flex items-center justify-between">
@@ -229,12 +240,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {showClientIdInput && (
           <div className="p-4 bg-[#090a0f] border border-surfaceBorder rounded-2xl space-y-3">
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Google Cloud OAuth Client ID (For Background Auto-Sync API)
+              Custom Google Cloud OAuth Client ID (Optional)
             </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Paste your Google OAuth Client ID..."
+                placeholder="727165202795-xxxx.apps.googleusercontent.com"
                 value={customClientId}
                 onChange={(e) => {
                   setCustomClientId(e.target.value);
@@ -246,12 +257,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 onClick={handleConnectDrive}
                 className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shrink-0 transition"
               >
-                Connect
+                Save & Connect
               </button>
             </div>
 
             <div className="text-[11px] text-slate-400 space-y-1.5 bg-surface p-3.5 rounded-xl border border-surfaceBorder">
-              <div className="font-bold text-white text-xs">GCP OAuth Configuration Instructions:</div>
+              <div className="font-bold text-white text-xs">GCP OAuth Configuration Details:</div>
               <div>1. Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-brand-400 underline font-semibold">Google Cloud Credentials</a> and create a <b>Web Application</b> Client ID.</div>
               <div>2. Set <b>Authorized JavaScript origin</b> to: <code className="bg-[#090a0f] text-emerald-400 px-2 py-0.5 rounded font-mono text-[10px]">https://kabraham13.github.io</code> <span className="text-amber-400 font-extrabold">(No trailing slash /)</span></div>
               <div>3. Set <b>Authorized redirect URI</b> to: <code className="bg-[#090a0f] text-emerald-400 px-2 py-0.5 rounded font-mono text-[10px]">https://kabraham13.github.io/kfit/</code></div>
