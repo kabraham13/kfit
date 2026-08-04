@@ -8,6 +8,7 @@ import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { playRestTimerChime, triggerTimerVibration, showTimerNotification } from './utils/timer';
+import { LogOut } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'workout' | 'library' | 'history' | 'settings'>('workout');
@@ -15,6 +16,9 @@ export function App() {
     new Date().toISOString().split('T')[0]
   );
   const [selectedHistoryExerciseId, setSelectedHistoryExerciseId] = useState<string | null>(null);
+
+  // Exit App Warning Modal State
+  const [showExitModal, setShowExitModal] = useState(false);
 
   // Settings
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
@@ -36,6 +40,31 @@ export function App() {
       }
     });
   }, []);
+
+  // Global Android Back Navigation & Tab Fallback Router
+  useEffect(() => {
+    window.history.pushState({ tab: activeTab }, '');
+
+    const handlePopState = (e: PopStateEvent) => {
+      // If inside sub-views (In-Exercise or 2-Step Exercise Selector), let component popstate handle it
+      if (e.state && (e.state.inExercise || e.state.addExercise)) {
+        return;
+      }
+
+      // If on non-log tabs (library, history, settings), fallback to 'workout' (Log) tab
+      if (activeTab !== 'workout') {
+        setActiveTab('workout');
+      } else {
+        // Show Exit Confirmation Warning Modal on main Log tab
+        setShowExitModal(true);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [activeTab]);
 
   // Timer Tick Interval Effect
   useEffect(() => {
@@ -147,6 +176,43 @@ export function App() {
           />
         )}
       </main>
+
+      {/* Exit App Confirmation Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#12141d] border border-surfaceBorder w-full max-w-xs rounded-3xl p-5 shadow-2xl space-y-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Exit kfit?</h3>
+              <p className="text-slate-400 text-xs mt-1">
+                Are you sure you want to leave the app?
+              </p>
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                onClick={() => {
+                  setShowExitModal(false);
+                  window.history.back();
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition"
+              >
+                Exit
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitModal(false);
+                  window.history.pushState({ tab: 'workout' }, '');
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-surface border border-surfaceBorder text-slate-300 font-bold text-xs hover:text-white"
+              >
+                Stay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Fixed Bottom Navigation Bar */}
       <BottomNav
