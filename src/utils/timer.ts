@@ -114,6 +114,55 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
+const TIMER_NOTIFICATION_TAG = 'kfit-rest-timer';
+
+function formatClock(secs: number) {
+  const m = Math.floor(Math.max(0, secs) / 60);
+  const s = Math.max(0, secs) % 60;
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+/**
+ * Live countdown on the lock screen while the app is backgrounded.
+ *
+ * The web has no self-ticking chronometer notification, so this re-posts under a
+ * fixed tag, which replaces the existing notification in place. `silent` and
+ * `renotify: false` keep it from buzzing on every update — only the completion
+ * notification is allowed to make noise.
+ */
+export async function showOngoingTimerNotification(secondsLeft: number, isPaused = false) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!('serviceWorker' in navigator)) return;
+
+  const options = {
+    body: isPaused ? 'Rest timer paused' : 'Resting — tap to return to your workout',
+    icon: '/kfit/pwa-192.png',
+    badge: '/kfit/pwa-192.png',
+    tag: TIMER_NOTIFICATION_TAG,
+    renotify: false,
+    requireInteraction: true,
+    silent: true,
+  } as NotificationOptions;
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(`${formatClock(secondsLeft)} remaining`, options);
+  } catch (err) {
+    console.warn('Ongoing timer notification error:', err);
+  }
+}
+
+export async function clearTimerNotification() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.getNotifications({ tag: TIMER_NOTIFICATION_TAG });
+    existing.forEach((n) => n.close());
+  } catch (err) {
+    console.warn('Could not clear timer notification:', err);
+  }
+}
+
 export async function showTimerNotification(title: string, body: string) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
@@ -121,7 +170,7 @@ export async function showTimerNotification(title: string, body: string) {
     body,
     icon: '/kfit/pwa-192.png',
     badge: '/kfit/pwa-192.png',
-    tag: 'kfit-rest-timer',
+    tag: TIMER_NOTIFICATION_TAG,
     renotify: true,
     requireInteraction: true,
     vibrate: [300, 150, 300, 150, 500],

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  clearTimerNotification,
   playRestTimerChime,
   primeAudio,
   requestNotificationPermission,
+  showOngoingTimerNotification,
   showTimerNotification,
   startBackgroundKeepAlive,
   stopBackgroundKeepAlive,
@@ -53,6 +55,9 @@ export function useRestTimer(defaultTimerSec: number) {
   const endsAtRef = useRef<number | null>(null);
   const firedRef = useRef<boolean>(false);
   const totalRef = useRef<number>(defaultTimerSec);
+  // Last value pushed to the ongoing notification, so we re-post once per
+  // second rather than on every 250ms tick.
+  const lastNotifiedSecondRef = useRef<number | null>(null);
 
   const persist = useCallback((remaining: number | null) => {
     writePersisted({
@@ -78,11 +83,22 @@ export function useRestTimer(defaultTimerSec: number) {
     if (endsAt === null) return;
     const remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
     setSecondsLeft(remaining);
+
     if (remaining === 0) {
       fireAlert();
       setIsActive(false);
       endsAtRef.current = null;
+      lastNotifiedSecondRef.current = null;
       persist(0);
+      return;
+    }
+
+    // Keep the lock-screen countdown current while the app is in the
+    // background. Pointless while the app is on screen, where the overlay
+    // already shows the time.
+    if (document.hidden && remaining !== lastNotifiedSecondRef.current) {
+      lastNotifiedSecondRef.current = remaining;
+      void showOngoingTimerNotification(remaining);
     }
   }, [fireAlert, persist]);
 
@@ -133,12 +149,26 @@ export function useRestTimer(defaultTimerSec: number) {
     const onWake = () => {
       if (endsAtRef.current !== null) sync();
     };
-    document.addEventListener('visibilitychange', onWake);
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        // Post the countdown immediately on leaving, so it is on the lock
+        // screen right away rather than up to a second later.
+        if (endsAtRef.current !== null) sync();
+        return;
+      }
+      // Back in the app — the overlay takes over, so retire the notification.
+      lastNotifiedSecondRef.current = null;
+      void clearTimerNotification();
+      onWake();
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('focus', onWake);
     window.addEventListener('pageshow', onWake);
     window.addEventListener('resume', onWake);
     return () => {
-      document.removeEventListener('visibilitychange', onWake);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('focus', onWake);
       window.removeEventListener('pageshow', onWake);
       window.removeEventListener('resume', onWake);
@@ -181,6 +211,9 @@ export function useRestTimer(defaultTimerSec: number) {
       setIsActive(false);
       stopBackgroundKeepAlive();
       persist(remaining);
+      lastNotifiedSecondRef.current = null;
+      if (document.hidden) void showOngoingTimerNotification(remaining, true);
+      else void clearTimerNotification();
     } else {
       const remaining = secondsLeft ?? totalRef.current;
       if (remaining <= 0) return;
@@ -225,9 +258,11 @@ export function useRestTimer(defaultTimerSec: number) {
   const close = useCallback(() => {
     endsAtRef.current = null;
     firedRef.current = false;
+    lastNotifiedSecondRef.current = null;
     setIsActive(false);
     setSecondsLeft(null);
     stopBackgroundKeepAlive();
+    void clearTimerNotification();
     writePersisted(null);
   }, []);
 
