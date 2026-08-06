@@ -30,6 +30,30 @@ type LogSubView =
   | { type: 'selector-exercises'; category: Category }
   | { type: 'in-exercise'; exerciseId: string };
 
+export interface PreviousSession {
+  date: string;
+  sets: WorkoutSet[];
+}
+
+/**
+ * The most recent completed session for an exercise strictly before `beforeDate`.
+ * Ordering is by date, never by insertion order.
+ */
+async function findPreviousSession(
+  exerciseId: string,
+  beforeDate: string
+): Promise<PreviousSession | null> {
+  const rows = await db.workoutSets.where('exerciseId').equals(exerciseId).toArray();
+  const prior = rows.filter((s) => s.date < beforeDate && s.isCompleted);
+  if (prior.length === 0) return null;
+
+  const latest = prior.reduce((max, s) => (s.date > max ? s.date : max), prior[0].date);
+  return {
+    date: latest,
+    sets: prior.filter((s) => s.date === latest).sort((a, b) => a.setOrder - b.setOrder)
+  };
+}
+
 function subViewFromHistoryState(s: any): LogSubView {
   if (!s || !s.subViewType) return { type: 'overview' };
   if (s.subViewType === 'in-exercise' && s.exerciseId) {
@@ -103,6 +127,14 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   );
 
   // Fetch all unique workout dates for streak and weekly tracker
+  // Previous session for the exercise being edited. Kept at the top level
+  // because hooks cannot live inside the sub-view branches below.
+  const activeExerciseId = subView.type === 'in-exercise' ? subView.exerciseId : null;
+  const previousSession = useLiveQuery(
+    () => (activeExerciseId ? findPreviousSession(activeExerciseId, selectedDate) : null),
+    [activeExerciseId, selectedDate]
+  );
+
   const allLogs = useLiveQuery(() => db.workoutLogs.toArray());
   const exercises = useLiveQuery(() => db.exercises.toArray());
 
@@ -158,15 +190,15 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   const workoutsThisWeek = weekDays.filter((d) => d.hasWorkout).length;
 
   const addExerciseToDate = async (exercise: Exercise) => {
-    const lastSessionSets = await db.workoutSets
-      .where('exerciseId')
-      .equals(exercise.id)
-      .reverse()
-      .limit(1)
-      .toArray();
+    // Prefill from the most recent *session*, not the highest primary key.
+    // .reverse().limit(1) on the exerciseId index returns whichever row was
+    // inserted last, so backfilling a missed workout poisoned every future
+    // prefill with numbers from the wrong date.
+    const prior = await findPreviousSession(exercise.id, selectedDate);
+    const lastSet = prior ? prior.sets[prior.sets.length - 1] : null;
 
-    const initialWeight = lastSessionSets.length > 0 ? lastSessionSets[0].weight : 135;
-    const initialReps = lastSessionSets.length > 0 ? lastSessionSets[0].reps : 10;
+    const initialWeight = lastSet ? lastSet.weight : 0;
+    const initialReps = lastSet ? lastSet.reps : 10;
 
     await db.workoutSets.add({
       workoutId: selectedDate,
@@ -264,9 +296,15 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   // FULL-PAGE MODE B: DEDICATED IN-EXERCISE VIEW
   // -------------------------------------------------------------
   if (subView.type === 'in-exercise') {
-    const activeExerciseId = subView.exerciseId;
-    const sets = exerciseGroupMap.get(activeExerciseId) || [];
+    const sets = exerciseGroupMap.get(activeExerciseId!) || [];
     const exInfo = exercises?.find((e) => e.id === activeExerciseId);
+    const prevDateLabel = previousSession
+      ? new Date(previousSession.date + 'T00:00:00').toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric'
+        })
+      : null;
     const isCardio = exInfo?.isCardio || false;
     const exerciseName = sets[0]?.exerciseName || exInfo?.name || 'Exercise';
     const badgeStyle = getCategoryBadgeStyle(exInfo?.categoryName, exInfo?.categoryId);
@@ -284,7 +322,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
           </button>
 
           <button
-            onClick={() => onSelectExerciseHistory(activeExerciseId)}
+            onClick={() => onSelectExerciseHistory(activeExerciseId!)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-surfaceBorder hover:border-brand-500/40 text-slate-300 text-xs font-semibold transition"
           >
             <History className="w-4 h-4 text-brand-400" />
@@ -312,6 +350,37 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Last session — the reference point for whether today is progress.
+            Without it you have to leave the exercise to answer that. */}
+        {previousSession && previousSession.sets.length > 0 && (
+          <div className="bg-card border border-surfaceBorder rounded-2xl px-4 py-3 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Last time
+              </span>
+              <span className="text-[11px] font-semibold text-slate-500">{prevDateLabel}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {previousSession.sets.map((s, i) => (
+                <span
+                  key={s.id ?? i}
+                  className="px-2.5 py-1 rounded-lg bg-[#090a0f] border border-surfaceBorder/80 font-mono text-xs font-bold text-slate-300"
+                >
+                  {isCardio ? (
+                    <>
+                      {s.distance ?? 0} · {Math.floor((s.timeSeconds || 0) / 60)}m
+                    </>
+                  ) : (
+                    <>
+                      {s.weight} × {s.reps}
+                    </>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Integrated Top Rest Timer Header Component with Stop / Cancel button */}
         {timerSecondsLeft !== null && (
@@ -459,7 +528,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
 
         {/* Set Action Controls */}
         <button
-          onClick={() => addSetToExercise(activeExerciseId, exerciseName)}
+          onClick={() => addSetToExercise(activeExerciseId!, exerciseName)}
           className="w-full py-3.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 transition"
         >
           <Plus className="w-5 h-5" />
