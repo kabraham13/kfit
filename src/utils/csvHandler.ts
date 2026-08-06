@@ -4,9 +4,41 @@ import { db, WorkoutSet, Exercise, Category, WorkoutLog } from '../db';
 export interface CSVImportResult {
   workoutsImported: number;
   setsImported: number;
+  /** Rows that already existed and were left untouched. */
+  setsSkipped: number;
   exercisesCreated: number;
   categoriesCreated: number;
+  /** Unit the file was read as, after header detection. */
+  detectedUnit: 'lbs' | 'kg';
+  /** Fatal — the import did not complete. */
   errors: string[];
+  /** Non-fatal notes: converted units, skipped rows. */
+  warnings: string[];
+}
+
+const LBS_PER_KG = 2.20462;
+
+/** FitNotes writes YYYY-MM-DD. Anything else would never match our indexes. */
+function normaliseDate(raw: string): string | null {
+  const s = String(raw).trim().split(' ')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // Accept the common slash forms rather than silently dropping the row.
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    const [, a, b, y] = slash;
+    // Ambiguous D/M vs M/D: treat >12 in the first position as the day.
+    const [month, day] = Number(a) > 12 ? [b, a] : [a, b];
+    return `${y}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  return null;
+}
+
+function detectUnit(fields: string[]): 'lbs' | 'kg' | null {
+  const joined = fields.join('|').toLowerCase();
+  if (joined.includes('weight (kg)')) return 'kg';
+  if (joined.includes('weight (lbs)')) return 'lbs';
+  return null;
 }
 
 export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSVImportResult> {
@@ -16,7 +48,24 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
       skipEmptyLines: true,
       complete: async (results) => {
         const errors: string[] = [];
+        const warnings: string[] = [];
         try {
+          // The FitNotes export names its weight column with the unit. Without
+          // honouring it a kg file imports as lbs and every number is wrong by
+          // 2.2x — silently.
+          const headerFields = (results.meta?.fields as string[]) || [];
+          const fileUnit = detectUnit(headerFields);
+          const settings = await db.userSettings.get('default');
+          const targetUnit = settings?.weightUnit || 'lbs';
+          // An unlabelled column is assumed to already be in the user's unit.
+          const detectedUnit: 'lbs' | 'kg' = fileUnit || targetUnit;
+          const weightFactor =
+            detectedUnit === targetUnit ? 1 : detectedUnit === 'kg' ? LBS_PER_KG : 1 / LBS_PER_KG;
+
+          if (fileUnit && fileUnit !== targetUnit) {
+            warnings.push(`Converted weights from ${fileUnit} to ${targetUnit}.`);
+          }
+
           // Pre-fetch existing data into fast O(1) Maps
           const existingCategories = await db.categories.toArray();
           const categoryMap = new Map<string, Category>(
@@ -42,11 +91,21 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
 
             // FitNotes CSV header column matching (handling variations)
             const rawDate = row['Date'] || row['date'] || row['DATE'] || '';
-            const dateStr = String(rawDate).trim().split(' ')[0];
             const exerciseName = String(row['Exercise'] || row['exercise'] || row['EXERCISE'] || '').trim();
             const categoryName = String(row['Category'] || row['category'] || row['CATEGORY'] || 'Custom').trim();
 
-            if (!dateStr || !exerciseName) continue;
+            if (!rawDate || !exerciseName) continue;
+
+            // A date that is not YYYY-MM-DD would be written verbatim and then
+            // never match the date indexes: invisible in History, undeletable,
+            // but still counted. Reject rather than import a ghost row.
+            const dateStr = normaliseDate(rawDate);
+            if (!dateStr) {
+              if (warnings.length < 20) {
+                warnings.push(`Row ${i + 2}: unrecognised date "${String(rawDate).trim()}" — skipped.`);
+              }
+              continue;
+            }
 
             const weightVal = parseFloat(row['Weight (lbs)'] || row['Weight (kg)'] || row['Weight'] || row['weight'] || '0');
             const repsVal = parseInt(row['Reps'] || row['reps'] || '0', 10);
@@ -111,7 +170,7 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
               exerciseId: ex.id,
               exerciseName: ex.name,
               setOrder: currentOrder,
-              weight: isNaN(weightVal) ? 0 : weightVal,
+              weight: isNaN(weightVal) ? 0 : Math.round(weightVal * weightFactor * 100) / 100,
               reps: isNaN(repsVal) ? 0 : repsVal,
               distance: isNaN(distanceVal) || distanceVal <= 0 ? undefined : distanceVal,
               timeSeconds: timeSeconds > 0 ? timeSeconds : undefined,
@@ -119,6 +178,8 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
               timestamp: nowBase + i
             });
           }
+
+          let setsSkipped = 0;
 
           // Execute bulk batch writes inside a single Dexie transaction for instant speed
           await db.transaction('rw', [db.categories, db.exercises, db.workoutLogs, db.workoutSets], async () => {
@@ -139,25 +200,48 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
             }
 
             if (setsToInsert.length > 0) {
-              await db.workoutSets.bulkAdd(setsToInsert);
+              // Re-importing a backup used to duplicate every set: workoutSets
+              // has an autoincrement key, so bulkAdd always inserted. Restoring
+              // yesterday's Drive backup doubled the history; twice tripled it.
+              // Skip rows already occupying the same (date, exercise, set
+              // number) slot, so an import is idempotent and never clobbers an
+              // edit the user made after a previous import.
+              const affectedDates = Array.from(workoutDatesSet);
+              const existingSets = await db.workoutSets.where('date').anyOf(affectedDates).toArray();
+              const existingKeys = new Set(
+                existingSets.map((s) => `${s.date}|${s.exerciseId}|${s.setOrder}`)
+              );
+
+              const fresh = setsToInsert.filter(
+                (s) => !existingKeys.has(`${s.date}|${s.exerciseId}|${s.setOrder}`)
+              );
+              setsSkipped = setsToInsert.length - fresh.length;
+
+              if (fresh.length > 0) await db.workoutSets.bulkAdd(fresh);
             }
           });
 
           resolve({
             workoutsImported: workoutDatesSet.size,
-            setsImported: setsToInsert.length,
+            setsImported: setsToInsert.length - setsSkipped,
+            setsSkipped,
             exercisesCreated: newExercisesMap.size,
             categoriesCreated: newCategoriesMap.size,
-            errors
+            detectedUnit,
+            errors,
+            warnings
           });
         } catch (err: any) {
           console.error('FitNotes CSV import failed:', err);
           resolve({
             workoutsImported: 0,
             setsImported: 0,
+            setsSkipped: 0,
             exercisesCreated: 0,
             categoriesCreated: 0,
-            errors: [err?.message || 'Error processing CSV file']
+            detectedUnit: 'lbs',
+            errors: [err?.message || 'Error processing CSV file'],
+            warnings: []
           });
         }
       },
@@ -165,9 +249,12 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
         resolve({
           workoutsImported: 0,
           setsImported: 0,
+          setsSkipped: 0,
           exercisesCreated: 0,
           categoriesCreated: 0,
-          errors: [err?.message || 'CSV file parse error']
+          detectedUnit: 'lbs',
+          errors: [err?.message || 'CSV file parse error'],
+          warnings: []
         });
       }
     });
@@ -175,8 +262,16 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
 }
 
 export async function exportFitNotesCSV(): Promise<string> {
-  const allSets = await db.workoutSets.orderBy('date').toArray();
-  const allExercises = await db.exercises.toArray();
+  const settings = await db.userSettings.get('default');
+  const unit = settings?.weightUnit || 'lbs';
+
+  // Read both tables in one transaction. Previously a set logged between the
+  // two reads exported with its category resolved to "General".
+  const [allSets, allExercises] = await db.transaction(
+    'r',
+    [db.workoutSets, db.exercises],
+    async () => Promise.all([db.workoutSets.orderBy('date').toArray(), db.exercises.toArray()])
+  );
   const exMap = new Map(allExercises.map((e) => [e.id, e]));
 
   const rows = allSets.map((s) => {
@@ -193,7 +288,9 @@ export async function exportFitNotesCSV(): Promise<string> {
       Date: s.date,
       Exercise: s.exerciseName,
       Category: ex?.categoryName || 'General',
-      Weight: s.weight || 0,
+      // Unit-tagged, matching the FitNotes export format. A bare "Weight"
+      // column meant a kg backup silently re-imported as lbs.
+      [`Weight (${unit})`]: s.weight || 0,
       Reps: s.reps || 0,
       Distance: s.distance || '',
       Time: timeFormatted,

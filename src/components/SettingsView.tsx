@@ -337,10 +337,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div>
                   <h4 className="font-bold text-emerald-200 text-sm">FitNotes CSV Import Successful!</h4>
                   <p className="text-xs text-emerald-300/80 mt-1">
-                    Restored <span className="font-bold text-white">{importResult.workoutsImported} workout days</span>,{' '}
-                    <span className="font-bold text-white">{importResult.setsImported} total sets</span>, and created{' '}
-                    <span className="font-bold text-white">{importResult.exercisesCreated} custom exercises</span>.
+                    Added <span className="font-bold text-white">{importResult.setsImported} sets</span> across{' '}
+                    <span className="font-bold text-white">{importResult.workoutsImported} workout days</span>, and created{' '}
+                    <span className="font-bold text-white">{importResult.exercisesCreated} exercises</span>.
+                    {importResult.setsSkipped > 0 && (
+                      <>
+                        {' '}
+                        <span className="font-bold text-white">{importResult.setsSkipped} sets</span> were already
+                        present and were left unchanged.
+                      </>
+                    )}
                   </p>
+                  {importResult.warnings.length > 0 && (
+                    <p className="text-[11px] text-amber-300/90 mt-2">
+                      {importResult.warnings.slice(0, 5).join(" ")}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

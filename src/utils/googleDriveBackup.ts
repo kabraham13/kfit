@@ -371,6 +371,33 @@ export async function uploadBackupToGoogleDrive(): Promise<{ filename: string; f
   }
 
   const fileJson = await res.json();
+
+  // Verify before the cleanup pass is allowed to delete anything. A truncated
+  // or empty upload still returns 200, and deleting older backups on the
+  // strength of a bad one is how a backup system loses data.
+  const expectedBytes = new Blob([csvData]).size;
+  try {
+    const check = await driveFetch(
+      `https://www.googleapis.com/drive/v3/files/${fileJson.id}?fields=size`
+    );
+    if (check.ok) {
+      const meta = await check.json();
+      const actual = Number(meta.size);
+      if (Number.isFinite(actual) && actual !== expectedBytes) {
+        setSyncError('Backup upload looked incomplete — older backups were kept.');
+        notifyStatusChanged();
+        throw new Error(
+          `Backup verification failed: uploaded ${actual} bytes, expected ${expectedBytes}.`
+        );
+      }
+    }
+  } catch (err: any) {
+    if (err?.message?.startsWith('Backup verification failed')) throw err;
+    // A failed verification request is not proof of a bad upload; carry on but
+    // skip the destructive cleanup below.
+    console.warn('Could not verify backup upload:', err);
+  }
+
   const nowMs = Date.now();
   const nowDisplay =
     new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) +
@@ -401,11 +428,29 @@ async function cleanUpOldBackups(folderId: string | null, keepCount = MAX_BACKUP
     const data = await res.json();
     const files = data.files || [];
 
-    if (files.length > keepCount) {
-      for (const f of files.slice(keepCount)) {
-        await driveFetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, { method: 'DELETE' });
-        console.log(`Smart Cleanup: Purged old Google Drive backup ${f.name} (${f.id})`);
+    // Retain by distinct calendar day, not by file count. Drive allows
+    // duplicate filenames, so several manual backups in one day used to evict
+    // every genuinely older backup and collapse the window to a single day.
+    const seenDays = new Set<string>();
+    const doomed: Array<{ id: string; name: string }> = [];
+
+    for (const f of files) {
+      const day = String(f.createdTime || '').split('T')[0];
+      if (seenDays.size < keepCount || seenDays.has(day)) {
+        seenDays.add(day);
+        continue;
       }
+      doomed.push(f);
+    }
+
+    for (const f of doomed) {
+      // Trash, not permanent delete: a mistake here is otherwise unrecoverable.
+      await driveFetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trashed: true }),
+      });
+      console.log(`Smart Cleanup: Trashed old Google Drive backup ${f.name} (${f.id})`);
     }
   } catch (e) {
     // Cleanup is housekeeping — never fail a successful backup over it.
