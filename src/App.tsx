@@ -7,7 +7,8 @@ import { ExerciseLibraryView } from './components/ExerciseLibraryView';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
-import { playRestTimerChime, triggerTimerVibration, showTimerNotification } from './utils/timer';
+import { useRestTimer } from './hooks/useRestTimer';
+import { ensureDriveSessionFresh } from './utils/googleDriveBackup';
 import { LogOut } from 'lucide-react';
 
 export function App() {
@@ -24,10 +25,17 @@ export function App() {
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [defaultTimerSec, setDefaultTimerSec] = useState<number>(90);
 
-  // Rest Timer State
-  const [timerSecondsLeft, setTimerSecondsLeft] = useState<number | null>(null);
-  const [totalTimerSeconds, setTotalTimerSeconds] = useState<number>(90);
-  const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
+  // Rest Timer — wall-clock based so it survives app switching / backgrounding
+  const {
+    secondsLeft: timerSecondsLeft,
+    totalSeconds: totalTimerSeconds,
+    isActive: isTimerActive,
+    start: handleStartTimer,
+    pauseToggle: handlePauseToggleTimer,
+    reset: handleResetTimer,
+    addSeconds: handleAddTimerSeconds,
+    close: handleCloseTimer,
+  } = useRestTimer(defaultTimerSec);
 
   // Database initialization
   useEffect(() => {
@@ -36,9 +44,17 @@ export function App() {
       if (userSettings) {
         setWeightUnit(userSettings.weightUnit || 'lbs');
         setDefaultTimerSec(userSettings.defaultRestTimerSeconds || 90);
-        setTotalTimerSeconds(userSettings.defaultRestTimerSeconds || 90);
       }
     });
+  }, []);
+
+  // Renew the Google Drive token before it lapses, so the link does not quietly
+  // die between workouts. No-op when Drive is not connected.
+  useEffect(() => {
+    void ensureDriveSessionFresh();
+    const onFocus = () => void ensureDriveSessionFresh();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   // Global Android Back Navigation & Tab Fallback Router
@@ -72,56 +88,6 @@ export function App() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, [activeTab]);
-
-  // Timer Tick Interval Effect
-  useEffect(() => {
-    let interval: any = null;
-    if (isTimerActive && timerSecondsLeft !== null && timerSecondsLeft > 0) {
-      interval = setInterval(() => {
-        setTimerSecondsLeft((prev) => {
-          if (prev === null || prev <= 1) {
-            playRestTimerChime();
-            triggerTimerVibration();
-            showTimerNotification('Rest Timer Complete! 🔔', 'Time for your next set!');
-            setIsTimerActive(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isTimerActive, timerSecondsLeft]);
-
-  // Start Rest Timer
-  const handleStartTimer = (sec?: number) => {
-    const duration = sec || defaultTimerSec;
-    setTotalTimerSeconds(duration);
-    setTimerSecondsLeft(duration);
-    setIsTimerActive(true);
-  };
-
-  const handlePauseToggleTimer = () => {
-    setIsTimerActive(!isTimerActive);
-  };
-
-  const handleResetTimer = () => {
-    setTimerSecondsLeft(totalTimerSeconds);
-    setIsTimerActive(true);
-  };
-
-  const handleAddTimerSeconds = (sec: number) => {
-    if (timerSecondsLeft !== null) {
-      const updated = Math.max(0, timerSecondsLeft + sec);
-      setTimerSecondsLeft(updated);
-      setTotalTimerSeconds((prev) => Math.max(prev, updated));
-    }
-  };
-
-  const handleCloseTimer = () => {
-    setIsTimerActive(false);
-    setTimerSecondsLeft(null);
-  };
 
   const handleSelectExerciseHistory = (exerciseId: string) => {
     setSelectedHistoryExerciseId(exerciseId);

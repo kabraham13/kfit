@@ -21,6 +21,7 @@ import {
   disconnectGoogleDrive,
   setAutoBackupEnabled,
   uploadBackupToGoogleDrive,
+  GDRIVE_STATUS_EVENT,
   GoogleDriveStatus
 } from '../utils/googleDriveBackup';
 
@@ -46,8 +47,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [driveBackupSuccess, setDriveBackupSuccess] = useState<string | null>(null);
   const [driveBackupError, setDriveBackupError] = useState<string | null>(null);
 
+  // Background syncs can flip the connection into a needs-reconnect state, so
+  // mirror those changes here instead of only reading status on mount.
   useEffect(() => {
-    setGdriveStatus(getStoredGDriveStatus());
+    const refresh = () => setGdriveStatus(getStoredGDriveStatus());
+    refresh();
+    window.addEventListener(GDRIVE_STATUS_EVENT, refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener(GDRIVE_STATUS_EVENT, refresh);
+      window.removeEventListener('focus', refresh);
+    };
   }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,7 +152,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-black text-white">Google Drive Backup</h3>
-                {gdriveStatus.isConnected ? (
+                {gdriveStatus.isConnected && gdriveStatus.needsReauth ? (
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    Reconnect
+                  </span>
+                ) : gdriveStatus.isConnected ? (
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                     Linked
                   </span>
@@ -176,6 +190,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         ) : (
           /* Google Drive Status & Controls (When connected) */
           <div className="space-y-3 pt-1">
+            {gdriveStatus.needsReauth && (
+              <div className="p-4 bg-amber-950/40 border border-amber-500/40 rounded-2xl space-y-3">
+                <div className="flex items-start gap-2 text-xs font-semibold text-amber-100">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span>
+                    {gdriveStatus.lastError ||
+                      'Google Drive access needs to be renewed. Backups are paused until you reconnect.'}
+                  </span>
+                </div>
+                <button
+                  onClick={handleConnectDrive}
+                  className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  <span>Reconnect Google Drive</span>
+                </button>
+              </div>
+            )}
+
+            {gdriveStatus.userEmail && (
+              <div className="text-[11px] text-slate-400 text-center font-medium">
+                Signed in as <span className="text-slate-200 font-bold">{gdriveStatus.userEmail}</span>
+              </div>
+            )}
+
             <div className="p-4 bg-card border border-surfaceBorder rounded-2xl flex items-center justify-between">
               <div>
                 <div className="text-xs font-bold text-slate-300">Automatic 24h CSV Auto-Backup</div>

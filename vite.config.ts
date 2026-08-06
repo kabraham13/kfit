@@ -40,7 +40,9 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Adds the notificationclick handler for the rest-timer notification
+        importScripts: ['sw-notifications.js']
       }
     })
   ]
