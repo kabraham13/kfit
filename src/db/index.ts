@@ -49,6 +49,8 @@ export interface UserSettings {
   defaultRestTimerSeconds: number;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
+  /** Set once the starter data has been installed, so seeding never re-runs. */
+  hasSeeded?: boolean;
 }
 
 class KFitDatabase extends Dexie {
@@ -72,39 +74,53 @@ class KFitDatabase extends Dexie {
 
 export const db = new KFitDatabase();
 
+/**
+ * Populates a brand-new database with the starter FitNotes history.
+ *
+ * Never clears existing tables. An earlier version opened with .clear() on all
+ * four tables, which combined with a `setCount < 100` seed condition meant any
+ * user whose log dipped below 100 sets had their entire history destroyed on the
+ * next app load. Seeding is now additive and gated on a truly empty database.
+ */
 export async function seedFitnotesDatabase() {
   await db.transaction('rw', [db.categories, db.exercises, db.workoutLogs, db.workoutSets, db.userSettings], async () => {
-    // Clear existing sample data if seeding fresh history
-    await db.categories.clear();
-    await db.exercises.clear();
-    await db.workoutLogs.clear();
-    await db.workoutSets.clear();
-
-    await db.categories.bulkAdd(SEED_CATEGORIES);
-    await db.exercises.bulkAdd(SEED_EXERCISES);
-    await db.workoutLogs.bulkAdd(SEED_LOGS);
-    await db.workoutSets.bulkAdd(SEED_SETS as WorkoutSet[]);
+    // bulkPut, not bulkAdd: idempotent if this ever runs twice.
+    await db.categories.bulkPut(SEED_CATEGORIES);
+    await db.exercises.bulkPut(SEED_EXERCISES);
+    await db.workoutLogs.bulkPut(SEED_LOGS);
+    await db.workoutSets.bulkPut(SEED_SETS as WorkoutSet[]);
   });
 }
 
 export async function initDatabaseDefaults() {
-  const catCount = await db.categories.count();
-  const setCount = await db.workoutSets.count();
+  const settings = await db.userSettings.get('default');
 
-  // If database is empty or has only demo data with no sets, seed with full FitNotes history
-  if (catCount === 0 || setCount < 100) {
-    await seedFitnotesDatabase();
+  // A persisted marker, not a row-count heuristic. Counts cannot distinguish
+  // "new install" from "user deleted most of their sets", and guessing wrong
+  // costs the user their training history.
+  if (!settings?.hasSeeded) {
+    const catCount = await db.categories.count();
+    const setCount = await db.workoutSets.count();
+
+    // Only ever seed a genuinely empty database.
+    if (catCount === 0 && setCount === 0) {
+      await seedFitnotesDatabase();
+    }
   }
 
-  const settingsCount = await db.userSettings.count();
-  if (settingsCount === 0) {
+  if (!settings) {
     await db.userSettings.add({
       id: 'default',
       weightUnit: 'lbs',
       distanceUnit: 'miles',
       defaultRestTimerSeconds: 90,
       soundEnabled: true,
-      vibrationEnabled: true
+      vibrationEnabled: true,
+      hasSeeded: true
     });
+  } else if (!settings.hasSeeded) {
+    // Existing installs predate the marker — record it so the seed check is
+    // never re-evaluated against row counts again.
+    await db.userSettings.update('default', { hasSeeded: true });
   }
 }

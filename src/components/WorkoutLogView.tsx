@@ -30,6 +30,18 @@ type LogSubView =
   | { type: 'selector-exercises'; category: Category }
   | { type: 'in-exercise'; exerciseId: string };
 
+function subViewFromHistoryState(s: any): LogSubView {
+  if (!s || !s.subViewType) return { type: 'overview' };
+  if (s.subViewType === 'in-exercise' && s.exerciseId) {
+    return { type: 'in-exercise', exerciseId: s.exerciseId };
+  }
+  if (s.subViewType === 'selector-exercises' && s.category) {
+    return { type: 'selector-exercises', category: s.category };
+  }
+  if (s.subViewType === 'selector-categories') return { type: 'selector-categories' };
+  return { type: 'overview' };
+}
+
 export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   selectedDate,
   onSelectDate,
@@ -44,26 +56,18 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   onAddTimerSeconds,
   onCloseTimer
 }) => {
-  const [subView, setSubView] = useState<LogSubView>({ type: 'overview' });
+  // Derived from history.state rather than hardcoded to 'overview': this view
+  // unmounts when the History tab is opened from inside an exercise, taking its
+  // popstate listener with it. On Back it remounts, and without this it would
+  // ignore the restored history entry and drop you on the log overview instead
+  // of the exercise you came from.
+  const [subView, setSubView] = useState<LogSubView>(() => subViewFromHistoryState(window.history.state));
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Single Central PopState Listener for Log Sub-Views
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
-      const s = e.state;
-      if (s && s.subViewType) {
-        if (s.subViewType === 'selector-exercises' && s.category) {
-          setSubView({ type: 'selector-exercises', category: s.category });
-        } else if (s.subViewType === 'selector-categories') {
-          setSubView({ type: 'selector-categories' });
-        } else if (s.subViewType === 'in-exercise' && s.exerciseId) {
-          setSubView({ type: 'in-exercise', exerciseId: s.exerciseId });
-        } else {
-          setSubView({ type: 'overview' });
-        }
-      } else {
-        setSubView({ type: 'overview' });
-      }
+      setSubView(subViewFromHistoryState(e.state));
     };
 
     window.addEventListener('popstate', handlePopState);

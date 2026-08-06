@@ -37,6 +37,21 @@ export function App() {
     close: handleCloseTimer,
   } = useRestTimer(defaultTimerSec);
 
+  // Ask the browser not to evict our IndexedDB. Without this the origin is
+  // "best effort" storage and the entire training history can be reclaimed
+  // under storage pressure with no warning and no recovery.
+  useEffect(() => {
+    void (async () => {
+      try {
+        if (navigator.storage?.persist && !(await navigator.storage.persisted())) {
+          await navigator.storage.persist();
+        }
+      } catch {
+        /* unsupported browser — nothing to do */
+      }
+    })();
+  }, []);
+
   // Database initialization
   useEffect(() => {
     initDatabaseDefaults().then(async () => {
@@ -91,6 +106,10 @@ export function App() {
 
   const handleSelectExerciseHistory = (exerciseId: string) => {
     setSelectedHistoryExerciseId(exerciseId);
+    // Push, like every other tab switch does. Without this the history stack
+    // still points at the exercise you came from, so Back pops straight past it
+    // and there is no way to return to that page.
+    window.history.pushState({ tab: 'history' }, '');
     setActiveTab('history');
   };
 

@@ -13,10 +13,6 @@ import {
 
 const STORAGE_KEY = 'kfit.restTimer';
 
-// If the app was fully closed and we come back long after the timer expired,
-// there is nothing useful to show — drop it rather than resurrecting a stale 0:00.
-const STALE_EXPIRY_MS = 5 * 60 * 1000;
-
 interface PersistedTimer {
   total: number;
   /** Epoch ms the timer fires at. Null while paused. */
@@ -82,16 +78,21 @@ export function useRestTimer(defaultTimerSec: number) {
     const endsAt = endsAtRef.current;
     if (endsAt === null) return;
     const remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
-    setSecondsLeft(remaining);
 
     if (remaining === 0) {
       fireAlert();
       setIsActive(false);
       endsAtRef.current = null;
       lastNotifiedSecondRef.current = null;
-      persist(0);
+      // Clear rather than parking at 0:00 — a finished timer offering "Resume"
+      // and "Stop" is just clutter above the log. The chime, vibration and
+      // notification have already fired.
+      setSecondsLeft(null);
+      writePersisted(null);
       return;
     }
+
+    setSecondsLeft(remaining);
 
     // Keep the lock-screen countdown current while the app is in the
     // background. Pointless while the app is on screen, where the overlay
@@ -119,13 +120,7 @@ export function useRestTimer(defaultTimerSec: number) {
         setIsActive(true);
         return;
       }
-      // Expired while we were away. Show 0:00 briefly if it just happened,
-      // otherwise discard it entirely.
-      if (Date.now() - saved.endsAt < STALE_EXPIRY_MS) {
-        setSecondsLeft(0);
-        firedRef.current = true;
-        return;
-      }
+      // Expired while we were away — a finished timer is not shown at all.
       writePersisted(null);
       return;
     }
