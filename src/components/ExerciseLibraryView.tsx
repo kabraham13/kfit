@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { Plus, Search, FolderPlus, History } from 'lucide-react';
+import { Plus, Search, FolderPlus, ChevronRight } from 'lucide-react';
 import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
 
 interface ExerciseLibraryViewProps {
@@ -53,7 +53,7 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-black text-white">Exercise Library</h2>
-          <p className="text-xs text-slate-400">Browse or create custom exercises</p>
+          <p className="text-xs text-slate-400">Browse or create exercises</p>
         </div>
 
         <button
@@ -61,7 +61,7 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
           className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-brand-600/30 transition"
         >
           <Plus className="w-4 h-4" />
-          <span>Custom Exercise</span>
+          <span>New Exercise</span>
         </button>
       </div>
 
@@ -103,36 +103,26 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
         {filteredExercises?.map((ex) => {
           const badgeStyle = getCategoryBadgeStyle(ex.categoryName, ex.categoryId);
           return (
-            <div
+            <button
               key={ex.id}
-              className="p-3.5 rounded-2xl bg-surface border border-surfaceBorder hover:border-brand-500/40 flex items-center justify-between transition group"
+              onClick={() => onSelectExerciseHistory(ex.id)}
+              className="w-full text-left p-3.5 rounded-2xl bg-surface border border-surfaceBorder hover:border-brand-500/40 flex items-center justify-between transition group"
             >
               <div className="flex items-center gap-3.5">
                 <div className={`w-9 h-9 rounded-xl border flex items-center justify-center transition ${badgeStyle}`}>
                   <CategoryIcon categoryName={ex.categoryName} categoryId={ex.categoryId} size="md" />
                 </div>
                 <div>
-                  <div className="font-bold text-white group-hover:text-brand-400 transition flex items-center gap-2">
-                    <span>{ex.name}</span>
-                    {ex.isCustom && (
-                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-400 border border-brand-500/30">
-                        Custom
-                      </span>
-                    )}
+                  <div className="font-bold text-white group-hover:text-brand-400 transition">
+                    {ex.name}
                   </div>
                   <div className="text-xs text-slate-400">{ex.categoryName}</div>
                 </div>
               </div>
 
-              <button
-                onClick={() => onSelectExerciseHistory(ex.id)}
-                className="p-2 rounded-xl bg-card hover:bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-1 text-xs font-semibold"
-                title="View History & PRs"
-              >
-                <History className="w-4 h-4 text-brand-400" />
-                <span className="hidden sm:inline">History</span>
-              </button>
-            </div>
+              {/* Affordance only — the whole row opens history now. */}
+              <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-brand-400 transition shrink-0" />
+            </button>
           );
         })}
       </div>
@@ -142,7 +132,7 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
           <div className="bg-[#12141d] border border-surfaceBorder w-full max-w-md rounded-3xl p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <FolderPlus className="w-5 h-5 text-brand-400" />
-              <span>Create Custom Exercise</span>
+              <span>New Exercise</span>
             </h3>
 
             <form onSubmit={handleCreateCustomExercise} className="space-y-4">

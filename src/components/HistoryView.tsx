@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, WorkoutSet } from '../db';
-import { Award, Calendar, Trophy } from 'lucide-react';
+import { Award, Calendar, Trophy, TrendingUp } from 'lucide-react';
 import { calculate1RM } from '../utils/prCalculator';
+import { ExerciseProgressChart } from './ExerciseProgressChart';
 
 interface HistoryViewProps {
   initialExerciseId?: string | null;
@@ -50,6 +51,16 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   }
 
   const dateEntries = Array.from(dateGroupMap.entries());
+
+  // Oldest → newest, one point per session: the heaviest set of the day and the
+  // best estimated 1RM of the day.
+  const progressPoints = dateEntries
+    .map(([date, sets]) => ({
+      date,
+      topSet: Math.max(...sets.map((s) => s.weight || 0)),
+      est1RM: Math.max(...sets.map((s) => calculate1RM(s.weight, s.reps))),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32">
@@ -106,6 +117,16 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {selectedExercise && !selectedExercise.isCardio && progressPoints.length > 0 && (
+        <div className="bg-surface border border-surfaceBorder rounded-3xl p-4 mb-6 shadow-xl">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-brand-400" />
+            <span>Progress</span>
+          </h3>
+          <ExerciseProgressChart points={progressPoints} weightUnit={weightUnit} />
         </div>
       )}
 

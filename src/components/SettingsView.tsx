@@ -5,7 +5,6 @@ import {
   Upload,
   Download,
   Settings,
-  Smartphone,
   CheckCircle,
   AlertCircle,
   RefreshCw,
@@ -406,32 +405,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* PWA Home Screen Instructions */}
-      <div className="bg-surface border border-surfaceBorder rounded-3xl p-5 shadow-xl">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
-            <Smartphone className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-white">Install on Android Home Screen</h3>
-            <p className="text-xs text-slate-400">Use kfit 100% offline like a native Android app</p>
-          </div>
-        </div>
-
-        <ol className="list-decimal list-inside space-y-2 text-xs font-semibold text-slate-300 pl-1">
-          <li>
-            Open this web app URL in Chrome or Brave on your Android phone.
-          </li>
-          <li>
-            Tap the browser menu icon (<span className="font-bold text-white">⋮</span> 3 dots top right).
-          </li>
-          <li>
-            Select <span className="font-bold text-brand-400">"Add to Home Screen"</span> or{' '}
-            <span className="font-bold text-brand-400">"Install App"</span>.
-          </li>
-          <li>Launch `kfit` directly from your phone's home screen anytime!</li>
-        </ol>
-      </div>
     </div>
   );
 };

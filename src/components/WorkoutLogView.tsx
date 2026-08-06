@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, WorkoutSet, Exercise, Category } from '../db';
-import { Plus, Check, Trash2, Dumbbell, Flame, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell, Square, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Check, Dumbbell, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell, Square, Calendar as CalendarIcon } from 'lucide-react';
 import { checkAndCelebratePR } from '../utils/prCalculator';
 import { ExerciseSelectorView } from './ExerciseSelectorView';
+import { SwipeToDelete } from './SwipeToDelete';
 import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
 import { MonthCalendarModal } from './MonthCalendarModal';
 import { triggerAutoBackupIfEnabled } from '../utils/googleDriveBackup';
@@ -120,20 +121,8 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     }
   }
 
-  // Compute Current Streak
-  let currentStreak = 0;
   const today = new Date();
-  let checkDate = new Date(today);
   const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
-  if (!activeDatesSet.has(formatDate(checkDate))) {
-    checkDate.setDate(checkDate.getDate() - 1);
-  }
-
-  while (activeDatesSet.has(formatDate(checkDate))) {
-    currentStreak++;
-    checkDate.setDate(checkDate.getDate() - 1);
-  }
 
   // Compute Week Days (Monday to Sunday)
   const getWeekDays = (baseDateStr: string) => {
@@ -399,8 +388,11 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
           ) : (
             <div className="space-y-3">
               {sets.map((set, index) => (
-                <div
+                <SwipeToDelete
                   key={set.id || index}
+                  onDelete={() => set.id && deleteSet(set.id)}
+                >
+                <div
                   className={`grid grid-cols-12 items-center p-3 rounded-2xl border transition ${
                     set.isCompleted
                       ? 'bg-emerald-950/25 border-emerald-500/40 text-emerald-100'
@@ -440,10 +432,12 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                     />
                   </div>
 
-                  <div className="col-span-2 flex items-center justify-end gap-2">
+                  <div className="col-span-2 flex items-center justify-end">
+                    {/* Now the only control in this cell, so it gets the full
+                        width the trash button used to crowd. */}
                     <button
                       onClick={() => toggleSetComplete(set)}
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold transition shadow-md ${
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold transition shadow-md ${
                         set.isCompleted
                           ? 'bg-emerald-500 text-white shadow-emerald-500/30'
                           : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
@@ -451,39 +445,22 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                     >
                       <Check className="w-5 h-5 stroke-[3]" />
                     </button>
-
-                    <button
-                      onClick={() => set.id && deleteSet(set.id)}
-                      className="p-2 text-slate-500 hover:text-rose-400 transition rounded-lg"
-                      title="Delete Set"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
+                </SwipeToDelete>
               ))}
             </div>
           )}
         </div>
 
         {/* Set Action Controls */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => addSetToExercise(activeExerciseId, exerciseName)}
-            className="py-3.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 transition"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add Set</span>
-          </button>
-
-          <button
-            onClick={navigateSubViewBack}
-            className="py-3.5 rounded-2xl bg-surface border border-surfaceBorder text-slate-300 font-bold flex items-center justify-center gap-2 transition hover:bg-slate-800"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Done</span>
-          </button>
-        </div>
+        <button
+          onClick={() => addSetToExercise(activeExerciseId, exerciseName)}
+          className="w-full py-3.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 transition"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Add Set</span>
+        </button>
       </div>
     );
   }
@@ -493,25 +470,22 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   // -------------------------------------------------------------
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32">
-      {/* Fitness Streak & Weekly Activity Dashboard */}
+      {/* Weekly Activity Dashboard */}
       <div className="bg-gradient-to-br from-[#12141d] via-[#181b26] to-[#121829] border border-surfaceBorder rounded-3xl p-5 mb-6 shadow-xl relative overflow-hidden">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
-              <Flame className="w-6 h-6 animate-pulse" />
+            <div className="w-11 h-11 rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 shadow-lg shadow-brand-500/10">
+              <Dumbbell className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xl font-black text-white font-mono">
-                  {currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}
+                  {workoutsThisWeek} {workoutsThisWeek === 1 ? 'Workout' : 'Workouts'}
                 </span>
-                <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  🔥 Streak
+                <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30">
+                  This Week
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {workoutsThisWeek} {workoutsThisWeek === 1 ? 'workout' : 'workouts'} logged this week
-              </p>
             </div>
           </div>
 

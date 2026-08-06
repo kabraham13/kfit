@@ -20,7 +20,7 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
 
-  // Custom Exercise Form State
+  // New Exercise Form State
   const [newExName, setNewExName] = useState('');
   const [newExCategory, setNewExCategory] = useState<string>('chest');
   const [newExIsCardio, setNewExIsCardio] = useState(false);
@@ -69,10 +69,6 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
           <ArrowLeft className="w-4 h-4 text-brand-400" />
           <span>{selectedCategory ? 'Categories' : 'Back to Log'}</span>
         </button>
-
-        <span className="text-xs font-extrabold uppercase px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30">
-          Step {selectedCategory || searchQuery ? '2 of 2: Select Exercise' : '1 of 2: Select Category'}
-        </span>
       </div>
 
       {/* Global Search Bar */}
@@ -135,14 +131,14 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
             })}
           </div>
 
-          {/* Quick Custom Exercise Trigger */}
+          {/* Quick New Exercise Trigger */}
           <div className="pt-2">
             <button
               onClick={() => setIsCustomModalOpen(true)}
               className="w-full py-3.5 rounded-2xl bg-surface border border-surfaceBorder hover:border-brand-500/40 text-slate-300 font-bold flex items-center justify-center gap-2 transition hover:bg-slate-800"
             >
               <Plus className="w-5 h-5 text-brand-400" />
-              <span>Create Custom Exercise</span>
+              <span>New Exercise</span>
             </button>
           </div>
         </div>
@@ -159,14 +155,6 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">Tap an exercise to add it to today's workout</p>
             </div>
-
-            <button
-              onClick={() => setIsCustomModalOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-brand-600/20 text-brand-400 border border-brand-500/30 text-xs font-bold flex items-center gap-1.5 transition hover:bg-brand-600/30"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Custom</span>
-            </button>
           </div>
 
           <div className="space-y-2 mb-6">
@@ -195,11 +183,6 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
                               <span>{ex.primaryMuscle}</span>
                             </>
                           )}
-                          {ex.isCustom && (
-                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400">
-                              Custom
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -217,7 +200,7 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
                   onClick={() => setIsCustomModalOpen(true)}
                   className="px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-bold shadow-md"
                 >
-                  Create "{searchQuery}" as Custom Exercise
+                  Create "{searchQuery}" as a new exercise
                 </button>
               </div>
             )}
@@ -225,7 +208,7 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
         </div>
       )}
 
-      {/* Create Custom Exercise Modal */}
+      {/* New Exercise Modal */}
       {isCustomModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <form
@@ -235,7 +218,7 @@ export const ExerciseSelectorView: React.FC<ExerciseSelectorViewProps> = ({
             <div className="flex items-center justify-between border-b border-surfaceBorder pb-3">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Plus className="w-5 h-5 text-brand-400" />
-                <span>Create Custom Exercise</span>
+                <span>New Exercise</span>
               </h3>
               <button
                 type="button"
