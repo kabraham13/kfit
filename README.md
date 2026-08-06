@@ -36,6 +36,7 @@ login, and no data leaving your phone unless you explicitly link Google Drive.
   folder in your own Drive once every 24 hours, keeping a rolling 7 most recent
   backups. Uses the `drive.file` scope, so kfit can only ever see files it
   created — not the rest of your Drive.
+- **OLED Minimalist UI.** Pure pitch-dark (`#09090b`) theme with solid zinc cards, high-contrast tabular typography, electric blue CTAs, and emerald set completion indicators.
 - **lbs / kg** throughout, with cardio (distance and time) supported alongside
   weight training.
 
@@ -95,3 +96,7 @@ Your training data lives in your browser's IndexedDB and nowhere else. There is
 no analytics, no telemetry, and no account. Clearing site data or uninstalling
 the PWA deletes your logs — export a CSV or enable Drive backup if that matters
 to you.
+
+## License
+
+Distributed under the MIT License. See [`LICENSE`](file:///home/kevin/Documents/kfit/LICENSE) for details.
