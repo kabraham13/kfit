@@ -137,7 +137,7 @@ export async function showOngoingTimerNotification(secondsLeft: number, isPaused
   const options = {
     body: isPaused ? 'Rest timer paused' : 'Resting — tap to return to your workout',
     icon: '/kfit/pwa-192.png',
-    badge: '/kfit/pwa-192.png',
+    badge: '/kfit/badge-96.png',
     tag: TIMER_NOTIFICATION_TAG,
     renotify: false,
     requireInteraction: true,
@@ -169,7 +169,7 @@ export async function showTimerNotification(title: string, body: string) {
   const options: NotificationOptions = {
     body,
     icon: '/kfit/pwa-192.png',
-    badge: '/kfit/pwa-192.png',
+    badge: '/kfit/badge-96.png',
     tag: TIMER_NOTIFICATION_TAG,
     renotify: true,
     requireInteraction: true,
