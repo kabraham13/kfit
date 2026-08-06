@@ -25,25 +25,35 @@ export function playRestTimerChime() {
   const ctx = getAudioContext();
   if (!ctx) return;
   try {
-    const now = ctx.currentTime;
+    const start = ctx.currentTime;
 
-    const freqs = [659.25, 830.61, 987.77];
-    freqs.forEach((freq, index) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+    // 3 chime bursts spread over 2.5 seconds so the alert rings out clearly
+    const bursts = [
+      { delay: 0.0, freqs: [659.25, 830.61, 987.77] },
+      { delay: 0.75, freqs: [659.25, 830.61, 987.77, 1318.51] },
+      { delay: 1.5, freqs: [830.61, 987.77, 1318.51] },
+    ];
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + index * 0.12);
+    bursts.forEach((burst) => {
+      burst.freqs.forEach((freq, noteIdx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-      gain.gain.setValueAtTime(0, now + index * 0.12);
-      gain.gain.linearRampToValueAtTime(0.25, now + index * 0.12 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.12 + 0.3);
+        osc.type = 'sine';
+        const noteTime = start + burst.delay + noteIdx * 0.1;
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(freq, noteTime);
 
-      osc.start(now + index * 0.12);
-      osc.stop(now + index * 0.12 + 0.35);
+        gain.gain.setValueAtTime(0, noteTime);
+        gain.gain.linearRampToValueAtTime(0.3, noteTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.55);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.6);
+      });
     });
   } catch (err) {
     console.warn('Audio chime playback error:', err);
@@ -91,7 +101,7 @@ export function stopBackgroundKeepAlive() {
 export function triggerTimerVibration() {
   if ('vibrate' in navigator) {
     try {
-      navigator.vibrate([300, 150, 300, 150, 500]);
+      navigator.vibrate([400, 200, 400, 200, 400, 200, 600]);
     } catch (e) {
       console.warn('Vibration API error:', e);
     }
