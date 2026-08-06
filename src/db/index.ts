@@ -1,5 +1,22 @@
 import Dexie, { Table } from 'dexie';
-import { SEED_CATEGORIES, SEED_EXERCISES, SEED_LOGS, SEED_SETS } from './fitnotesSeed';
+/**
+ * Populates a brand-new database with the starter FitNotes history.
+ *
+ * Never clears existing tables. An earlier version opened with .clear() on all
+ * four tables, which combined with a `setCount < 100` seed condition meant any
+ * user whose log dipped below 100 sets had their entire history destroyed on the
+ * next app load. Seeding is now additive and gated on a truly empty database.
+ */
+export async function seedFitnotesDatabase() {
+  const { SEED_CATEGORIES, SEED_EXERCISES, SEED_LOGS, SEED_SETS } = await import('./fitnotesSeed');
+  await db.transaction('rw', [db.categories, db.exercises, db.workoutLogs, db.workoutSets, db.userSettings], async () => {
+    // bulkPut, not bulkAdd: idempotent if this ever runs twice.
+    await db.categories.bulkPut(SEED_CATEGORIES);
+    await db.exercises.bulkPut(SEED_EXERCISES);
+    await db.workoutLogs.bulkPut(SEED_LOGS);
+    await db.workoutSets.bulkPut(SEED_SETS as WorkoutSet[]);
+  });
+}
 
 export interface Category {
   id: string;
@@ -74,22 +91,34 @@ class KFitDatabase extends Dexie {
 
 export const db = new KFitDatabase();
 
+
+
 /**
- * Populates a brand-new database with the starter FitNotes history.
+ * Drops workout-day markers that no longer have a completed set behind them.
  *
- * Never clears existing tables. An earlier version opened with .clear() on all
- * four tables, which combined with a `setCount < 100` seed condition meant any
- * user whose log dipped below 100 sets had their entire history destroyed on the
- * next app load. Seeding is now additive and gated on a truly empty database.
+ * Deleting the last set used to leave its workoutLogs row in place, so an
+ * emptied day still showed a dot on the week strip and calendar and still
+ * counted toward "workouts this week". The write path is fixed, but existing
+ * databases carry orphans, so they are swept on load. Logs carrying notes are
+ * left alone — those are user content, not just a marker.
  */
-export async function seedFitnotesDatabase() {
-  await db.transaction('rw', [db.categories, db.exercises, db.workoutLogs, db.workoutSets, db.userSettings], async () => {
-    // bulkPut, not bulkAdd: idempotent if this ever runs twice.
-    await db.categories.bulkPut(SEED_CATEGORIES);
-    await db.exercises.bulkPut(SEED_EXERCISES);
-    await db.workoutLogs.bulkPut(SEED_LOGS);
-    await db.workoutSets.bulkPut(SEED_SETS as WorkoutSet[]);
+async function repairOrphanedWorkoutLogs() {
+  const logs = await db.workoutLogs.toArray();
+  if (logs.length === 0) return;
+
+  const datesWithCompletedSets = new Set<string>();
+  await db.workoutSets.each((s) => {
+    if (s.isCompleted) datesWithCompletedSets.add(s.date);
   });
+
+  const orphans = logs
+    .filter((l) => !datesWithCompletedSets.has(l.date) && !l.notes)
+    .map((l) => l.id);
+
+  if (orphans.length > 0) {
+    await db.workoutLogs.bulkDelete(orphans);
+    console.log(`Removed ${orphans.length} workout day marker(s) with no completed sets.`);
+  }
 }
 
 export async function initDatabaseDefaults() {
@@ -107,6 +136,8 @@ export async function initDatabaseDefaults() {
       await seedFitnotesDatabase();
     }
   }
+
+  await repairOrphanedWorkoutLogs();
 
   if (!settings) {
     await db.userSettings.add({

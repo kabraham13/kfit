@@ -16,6 +16,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         {/* Log Tab */}
         <button
           onClick={() => setActiveTab('workout')}
+          aria-label="Workout Log Tab"
+          aria-current={activeTab === 'workout' ? 'page' : undefined}
           className={`flex flex-col items-center gap-1 py-1.5 px-5 rounded-2xl transition ${
             activeTab === 'workout'
               ? 'text-brand-400 font-bold'
@@ -31,6 +33,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         {/* Exercises Tab */}
         <button
           onClick={() => setActiveTab('library')}
+          aria-label="Exercise Library Tab"
+          aria-current={activeTab === 'library' ? 'page' : undefined}
           className={`flex flex-col items-center gap-1 py-1.5 px-5 rounded-2xl transition ${
             activeTab === 'library'
               ? 'text-brand-400 font-bold'
@@ -46,6 +50,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         {/* History Tab */}
         <button
           onClick={() => setActiveTab('history')}
+          aria-label="Workout History Tab"
+          aria-current={activeTab === 'history' ? 'page' : undefined}
           className={`flex flex-col items-center gap-1 py-1.5 px-5 rounded-2xl transition ${
             activeTab === 'history'
               ? 'text-brand-400 font-bold'

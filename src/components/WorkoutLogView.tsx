@@ -246,17 +246,32 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     await db.workoutSets.update(setId, updates);
   };
 
+  /**
+   * A date counts as a workout day exactly while it has at least one completed
+   * set. Deleting or un-completing the last set used to leave the workoutLogs
+   * row behind, so an emptied day stayed marked on the week strip and calendar
+   * and kept counting toward "workouts this week".
+   */
+  const syncWorkoutLogForDate = async (date: string) => {
+    const setsForDate = await db.workoutSets.where('date').equals(date).toArray();
+    const hasCompleted = setsForDate.some((s) => s.isCompleted);
+    const log = await db.workoutLogs.get(date);
+
+    if (hasCompleted && !log) {
+      await db.workoutLogs.add({ id: date, date });
+    } else if (!hasCompleted && log && !log.notes) {
+      // Keep a log that carries notes — those are user content, not a marker.
+      await db.workoutLogs.delete(date);
+    }
+  };
+
   const toggleSetComplete = async (set: WorkoutSet) => {
     if (!set.id) return;
     const nextState = !set.isCompleted;
     await db.workoutSets.update(set.id, { isCompleted: nextState });
+    await syncWorkoutLogForDate(selectedDate);
 
     if (nextState) {
-      const logExists = await db.workoutLogs.get(selectedDate);
-      if (!logExists) {
-        await db.workoutLogs.add({ id: selectedDate, date: selectedDate });
-      }
-
       onStartTimer();
       if (set.weight > 0 && set.reps > 0) {
         await checkAndCelebratePR(set.exerciseId, set.weight, set.reps, set.id);
@@ -268,7 +283,9 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   };
 
   const deleteSet = async (setId: number) => {
+    const set = await db.workoutSets.get(setId);
     await db.workoutSets.delete(setId);
+    if (set) await syncWorkoutLogForDate(set.date);
   };
 
   const formatTimerTime = (secs: number) => {
@@ -480,6 +497,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                     <input
                       type="number"
                       step={isCardio ? '0.1' : '2.5'}
+                      aria-label={`Set ${index + 1} ${isCardio ? 'distance' : 'weight in ' + weightUnit}`}
                       value={isCardio ? set.distance || '' : set.weight || ''}
                       onChange={(e) =>
                         set.id &&
@@ -494,6 +512,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                   <div className="col-span-4 pr-3">
                     <input
                       type="number"
+                      aria-label={`Set ${index + 1} ${isCardio ? 'time in minutes' : 'reps'}`}
                       value={isCardio ? (set.timeSeconds ? Math.floor(set.timeSeconds / 60) : '') : set.reps || ''}
                       onChange={(e) =>
                         set.id &&
@@ -510,6 +529,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                         width the trash button used to crowd. */}
                     <button
                       onClick={() => toggleSetComplete(set)}
+                      aria-label={`Mark set ${index + 1} as ${set.isCompleted ? 'incomplete' : 'complete'}`}
                       className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold transition shadow-md ${
                         set.isCompleted
                           ? 'bg-emerald-500 text-white shadow-emerald-500/30'
@@ -545,31 +565,32 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32">
       {/* Weekly Activity Dashboard */}
       <div className="bg-gradient-to-br from-[#12141d] via-[#181b26] to-[#121829] border border-surfaceBorder rounded-3xl p-5 mb-6 shadow-xl relative overflow-hidden">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 shadow-lg shadow-brand-500/10">
+        {/* The count and its pill stack vertically rather than competing with
+            Month View for one row — side by side they overflowed on a phone. */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 shrink-0 rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 shadow-lg shadow-brand-500/10">
               <Dumbbell className="w-6 h-6" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-black text-white font-mono">
-                  {workoutsThisWeek} {workoutsThisWeek === 1 ? 'Workout' : 'Workouts'}
-                </span>
-                <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30">
-                  This Week
-                </span>
+            <div className="min-w-0">
+              <div className="text-xl font-black text-white font-mono leading-tight truncate">
+                {workoutsThisWeek} {workoutsThisWeek === 1 ? 'Workout' : 'Workouts'}
               </div>
+              <span className="inline-block mt-1 text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30 whitespace-nowrap">
+                This Week
+              </span>
             </div>
           </div>
 
           {/* Month Calendar Quick Trigger Button */}
           <button
             onClick={() => setIsCalendarOpen(true)}
-            className="px-3 py-2 rounded-xl bg-surface border border-surfaceBorder hover:border-brand-500/50 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition shadow-md"
+            className="shrink-0 px-3 py-2.5 rounded-xl bg-surface border border-surfaceBorder hover:border-brand-500/50 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition shadow-md whitespace-nowrap"
             title="Open Month Calendar"
           >
             <CalendarIcon className="w-4 h-4 text-brand-400" />
-            <span>Month View</span>
+            <span className="hidden min-[380px]:inline">Month View</span>
+            <span className="min-[380px]:hidden">Month</span>
           </button>
         </div>
 

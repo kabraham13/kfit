@@ -68,9 +68,10 @@ export const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
 
   useEffect(() => () => observerRef.current?.disconnect(), []);
 
+  const pointsKey = points.map((p) => p.date).join(',');
   useEffect(() => {
     setHoverIndex(null);
-  }, [points]);
+  }, [pointsKey]);
 
   // Fall back to a sane width when measurement hasn't happened yet (first paint,
   // or no ResizeObserver) so the chart never renders as a blank gap.

@@ -54,13 +54,15 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   // Oldest → newest, one point per session: the heaviest set of the day and the
   // best estimated 1RM of the day.
-  const progressPoints = dateEntries
-    .map(([date, sets]) => ({
-      date,
-      topSet: Math.max(...sets.map((s) => s.weight || 0)),
-      est1RM: Math.max(...sets.map((s) => calculate1RM(s.weight, s.reps))),
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const progressPoints = React.useMemo(() => {
+    return dateEntries
+      .map(([date, sets]) => ({
+        date,
+        topSet: Math.max(...sets.map((s) => s.weight || 0)),
+        est1RM: Math.max(...sets.map((s) => calculate1RM(s.weight, s.reps))),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [dateEntries.length, exerciseSets]);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32">

@@ -13,7 +13,9 @@ export interface PREvaluation {
 export function calculate1RM(weight: number, reps: number): number {
   if (reps <= 0 || weight <= 0) return 0;
   if (reps === 1) return weight;
-  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+  // Cap effective reps at 12 to prevent wild 1RM overestimations on high-rep sets
+  const effectiveReps = Math.min(reps, 12);
+  return Math.round(weight * (1 + effectiveReps / 30) * 10) / 10;
 }
 
 export async function checkAndCelebratePR(
@@ -44,9 +46,11 @@ export async function checkAndCelebratePR(
 
   const current1RM = calculate1RM(newWeight, newReps);
 
-  const isMaxWeightPR = newWeight > prevMaxWeight && prevMaxWeight > 0;
-  const is1RMPR = current1RM > prevMax1RM && prevMax1RM > 0;
-  const isRepsPR = newReps > prevMaxRepsAtWeight && prevMaxRepsAtWeight > 0;
+  // Only trigger PR when prior history exists for this exercise
+  const hasHistory = historicalSets.length > 0;
+  const isMaxWeightPR = hasHistory && newWeight > prevMaxWeight && prevMaxWeight > 0;
+  const is1RMPR = hasHistory && current1RM > prevMax1RM && prevMax1RM > 0;
+  const isRepsPR = hasHistory && newReps > prevMaxRepsAtWeight && prevMaxRepsAtWeight > 0;
 
   const isAnyPR = isMaxWeightPR || is1RMPR || isRepsPR;
 
