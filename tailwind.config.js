@@ -8,11 +8,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#090a0f',
-        surface: '#12141d',
-        surfaceBorder: '#1e2230',
-        card: '#181b26',
-        cardHover: '#202433',
+        background: '#09090b',
+        surface: '#121215',
+        surfaceBorder: '#27272a',
+        card: '#18181b',
+        cardHover: '#27272a',
         brand: {
           50: '#eff6ff',
           100: '#dbeafe',

@@ -66,21 +66,23 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
       </div>
 
       <div className="relative mb-4">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+        <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3.5" />
         <input
           type="text"
           placeholder="Search exercises..."
+          aria-label="Search exercises"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-surface border border-surfaceBorder focus:border-brand-500 text-white pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none transition"
+          className="w-full bg-[#121215] border border-zinc-800 focus:border-brand-500 text-white pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none transition"
         />
       </div>
 
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mb-6">
         <button
           onClick={() => setSelectedCategory(null)}
+          aria-label="Filter by All categories"
           className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${
-            selectedCategory === null ? 'bg-brand-600 text-white shadow-md' : 'bg-surface border border-surfaceBorder text-slate-400'
+            selectedCategory === null ? 'bg-brand-600 text-white shadow-sm' : 'bg-[#121215] border border-zinc-800 text-zinc-400 hover:text-zinc-200'
           }`}
         >
           All ({exercises?.length || 0})
@@ -89,8 +91,9 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
+            aria-label={`Filter by ${cat.name}`}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
-              selectedCategory === cat.id ? 'bg-brand-600 text-white shadow-md' : 'bg-surface border border-surfaceBorder text-slate-400'
+              selectedCategory === cat.id ? 'bg-brand-600 text-white shadow-sm' : 'bg-[#121215] border border-zinc-800 text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <CategoryIcon categoryName={cat.name} categoryId={cat.id} size="sm" />
@@ -106,30 +109,31 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
             <button
               key={ex.id}
               onClick={() => onSelectExerciseHistory(ex.id)}
-              className="w-full text-left p-3.5 rounded-2xl bg-surface border border-surfaceBorder hover:border-brand-500/40 flex items-center justify-between transition group"
+              aria-label={`View history for ${ex.name}`}
+              className="w-full text-left p-3.5 rounded-2xl bg-[#121215] border border-zinc-800 hover:border-zinc-700 flex items-center justify-between transition group"
             >
               <div className="flex items-center gap-3.5">
                 <div className={`w-9 h-9 rounded-xl border flex items-center justify-center transition ${badgeStyle}`}>
                   <CategoryIcon categoryName={ex.categoryName} categoryId={ex.categoryId} size="md" />
                 </div>
                 <div>
-                  <div className="font-bold text-white group-hover:text-brand-400 transition">
+                  <div className="font-bold text-white group-hover:text-brand-400 transition font-mono">
                     {ex.name}
                   </div>
-                  <div className="text-xs text-slate-400">{ex.categoryName}</div>
+                  <div className="text-xs text-zinc-400">{ex.categoryName}</div>
                 </div>
               </div>
 
               {/* Affordance only — the whole row opens history now. */}
-              <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-brand-400 transition shrink-0" />
+              <ChevronRight className="w-5 h-5 text-zinc-600 group-hover:text-brand-400 transition shrink-0" />
             </button>
           );
         })}
       </div>
 
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#12141d] border border-surfaceBorder w-full max-w-md rounded-3xl p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#121215] border border-zinc-800 w-full max-w-md rounded-3xl p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <FolderPlus className="w-5 h-5 text-brand-400" />
               <span>New Exercise</span>
@@ -137,7 +141,7 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
 
             <form onSubmit={handleCreateCustomExercise} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
                   Exercise Name
                 </label>
                 <input
@@ -145,19 +149,19 @@ export const ExerciseLibraryView: React.FC<ExerciseLibraryViewProps> = ({
                   placeholder="e.g. Belt Squat"
                   value={newExName}
                   onChange={(e) => setNewExName(e.target.value)}
-                  className="w-full bg-[#090a0f] border border-surfaceBorder focus:border-brand-500 text-white px-4 py-2.5 rounded-xl text-sm outline-none"
+                  className="w-full bg-[#09090b] border border-zinc-800 focus:border-brand-500 text-white px-4 py-2.5 rounded-xl text-sm outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
                   Category
                 </label>
                 <select
                   value={newExCategory}
                   onChange={(e) => setNewExCategory(e.target.value)}
-                  className="w-full bg-[#090a0f] border border-surfaceBorder focus:border-brand-500 text-white px-4 py-2.5 rounded-xl text-sm outline-none"
+                  className="w-full bg-[#09090b] border border-zinc-800 focus:border-brand-500 text-white px-4 py-2.5 rounded-xl text-sm outline-none"
                 >
                   {categories?.map((cat) => (
                     <option key={cat.id} value={cat.id}>

@@ -142,10 +142,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32 space-y-6 animate-fade-in">
       {/* Google Drive Integration Card */}
-      <div className="bg-gradient-to-br from-[#12141d] via-[#161a29] to-[#12141d] border border-brand-500/30 rounded-3xl p-5 shadow-2xl space-y-4">
+      <div className="bg-[#121215] border border-zinc-800 rounded-3xl p-5 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center shadow-lg shadow-brand-500/10">
+            <div className="w-11 h-11 rounded-2xl bg-brand-600/20 text-brand-400 border border-brand-500/30 flex items-center justify-center shadow-md">
               <Cloud className="w-6 h-6 animate-pulse" />
             </div>
             <div>
@@ -160,12 +160,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     Linked
                   </span>
                 ) : (
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
                     Not Linked
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5">
                 Auto-sync CSV backups every 24h to your Google Drive
               </p>
             </div>
@@ -174,7 +174,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* Connect Google Drive Button (When not connected) */}
         {!gdriveStatus.isConnected ? (
-          <div className="p-4 bg-card border border-surfaceBorder rounded-2xl text-center space-y-3">
+          <div className="p-4 bg-[#18181b] border border-zinc-800 rounded-2xl text-center space-y-3">
             <p className="text-xs text-slate-300 max-w-md mx-auto">
               Link your Google Drive account to automatically sync CSV backups into your dedicated <span className="font-bold text-brand-400">kfit_backups</span> folder.
             </p>

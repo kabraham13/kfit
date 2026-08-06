@@ -66,14 +66,15 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32">
-      <div className="bg-surface border border-surfaceBorder rounded-2xl p-4 mb-6 shadow-md">
-        <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+      <div className="bg-[#121215] border border-zinc-800 rounded-2xl p-4 mb-6 shadow-sm">
+        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
           Select Exercise to View History
         </label>
         <select
           value={selectedExerciseId}
           onChange={(e) => setSelectedExerciseId(e.target.value)}
-          className="w-full bg-[#090a0f] border border-surfaceBorder focus:border-brand-500 text-white px-4 py-3 rounded-xl font-bold text-base outline-none transition cursor-pointer"
+          aria-label="Select Exercise to View History"
+          className="w-full bg-[#09090b] border border-zinc-800 focus:border-brand-500 text-white px-4 py-3 rounded-xl font-bold text-base outline-none transition cursor-pointer"
         >
           {exercises?.map((ex) => (
             <option key={ex.id} value={ex.id}>
@@ -84,36 +85,36 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       </div>
 
       {selectedExercise && (
-        <div className="bg-gradient-to-br from-surface via-card to-indigo-950/30 border border-brand-500/30 rounded-3xl p-5 mb-6 shadow-xl relative overflow-hidden">
+        <div className="bg-[#121215] border border-zinc-800 rounded-3xl p-5 mb-6 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <span className="text-xs uppercase font-bold px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30">
+              <span className="text-xs uppercase font-bold px-2.5 py-1 rounded-full bg-brand-600/20 text-brand-400 border border-brand-500/30">
                 {selectedExercise.categoryName}
               </span>
-              <h2 className="text-2xl font-black text-white mt-2">{selectedExercise.name}</h2>
+              <h2 className="text-2xl font-black text-white mt-2 font-mono">{selectedExercise.name}</h2>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-brand-500/10 text-brand-400 flex items-center justify-center border border-brand-500/20 shadow-lg">
+            <div className="w-12 h-12 rounded-2xl bg-brand-600/15 text-brand-400 flex items-center justify-center border border-brand-500/30 shadow-md">
               <Trophy className="w-6 h-6" />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3 pt-2">
-            <div className="bg-[#090a0f]/60 backdrop-blur-md rounded-2xl p-3 border border-surfaceBorder/80">
-              <div className="text-[11px] font-bold uppercase text-slate-400">Max Weight</div>
+            <div className="bg-[#09090b] rounded-2xl p-3 border border-zinc-800">
+              <div className="text-[11px] font-bold uppercase text-zinc-400">Max Weight</div>
               <div className="text-lg font-black text-white font-mono mt-0.5">
-                {maxWeight} <span className="text-xs text-slate-400 font-normal">{weightUnit}</span>
+                {maxWeight} <span className="text-xs text-zinc-400 font-normal">{weightUnit}</span>
               </div>
             </div>
 
-            <div className="bg-[#090a0f]/60 backdrop-blur-md rounded-2xl p-3 border border-surfaceBorder/80">
-              <div className="text-[11px] font-bold uppercase text-slate-400">Est. 1RM</div>
+            <div className="bg-[#09090b] rounded-2xl p-3 border border-zinc-800">
+              <div className="text-[11px] font-bold uppercase text-zinc-400">Est. 1RM</div>
               <div className="text-lg font-black text-emerald-400 font-mono mt-0.5">
-                {max1RM} <span className="text-xs text-slate-400 font-normal">{weightUnit}</span>
+                {max1RM} <span className="text-xs text-zinc-400 font-normal">{weightUnit}</span>
               </div>
             </div>
 
-            <div className="bg-[#090a0f]/60 backdrop-blur-md rounded-2xl p-3 border border-surfaceBorder/80">
-              <div className="text-[11px] font-bold uppercase text-slate-400">Sessions</div>
+            <div className="bg-[#09090b] rounded-2xl p-3 border border-zinc-800">
+              <div className="text-[11px] font-bold uppercase text-zinc-400">Sessions</div>
               <div className="text-lg font-black text-brand-400 font-mono mt-0.5">
                 {dateEntries.length}
               </div>
@@ -123,8 +124,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       )}
 
       {selectedExercise && !selectedExercise.isCardio && progressPoints.length > 0 && (
-        <div className="bg-surface border border-surfaceBorder rounded-3xl p-4 mb-6 shadow-xl">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
+        <div className="bg-[#121215] border border-zinc-800 rounded-3xl p-4 mb-6 shadow-sm">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-2 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-brand-400" />
             <span>Progress</span>
           </h3>

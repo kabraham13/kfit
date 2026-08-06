@@ -13,10 +13,10 @@ interface ExerciseProgressChartProps {
 
 // Validated against the app's #12141d surface for the dark categorical palette:
 // lightness band, chroma floor, CVD separation, and 3:1 contrast all pass.
-const SERIES_TOP_SET = '#3987e5';
-const SERIES_1RM = '#199e70';
+const SERIES_TOP_SET = '#3b82f6';
+const SERIES_1RM = '#10b981';
 
-const SURFACE = '#12141d';
+const SURFACE = '#121215';
 
 const PAD_LEFT = 44;
 const PAD_RIGHT = 16;

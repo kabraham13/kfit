@@ -89,22 +89,23 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-[#12141d] border border-surfaceBorder w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
+      <div className="bg-[#121215] border border-zinc-800 w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
         {/* Header Bar */}
-        <div className="flex items-center justify-between border-b border-surfaceBorder pb-3">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-brand-500/15 border border-brand-500/30 text-brand-400 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-brand-600/15 border border-brand-500/30 text-brand-400 flex items-center justify-center">
               <CalendarIcon className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-black text-white">Month Calendar</h3>
-              <p className="text-[11px] text-slate-400">Tap any date to switch log</p>
+              <p className="text-[11px] text-zinc-400">Tap any date to switch log</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white bg-surface hover:bg-slate-800 rounded-xl transition"
+            aria-label="Close Month Calendar"
+            className="p-2 text-zinc-400 hover:text-white bg-[#18181b] hover:bg-zinc-800 rounded-xl transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -114,14 +115,15 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
         <div className="flex items-center justify-between px-1">
           <button
             onClick={() => shiftMonth(-1)}
-            className="p-2 rounded-xl bg-surface border border-surfaceBorder hover:bg-slate-800 text-slate-300 transition"
+            aria-label="Previous Month"
+            className="p-2 rounded-xl bg-[#18181b] border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition"
             title="Previous Month"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
 
           <div className="text-center">
-            <div className="text-lg font-black text-white">
+            <div className="text-lg font-black text-white font-mono">
               {monthName} {viewYear}
             </div>
             <div className="text-xs text-brand-400 font-semibold flex items-center justify-center gap-1 mt-0.5">
@@ -132,7 +134,8 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
 
           <button
             onClick={() => shiftMonth(1)}
-            className="p-2 rounded-xl bg-surface border border-surfaceBorder hover:bg-slate-800 text-slate-300 transition"
+            aria-label="Next Month"
+            className="p-2 rounded-xl bg-[#18181b] border border-zinc-800 hover:bg-zinc-800 text-zinc-300 transition"
             title="Next Month"
           >
             <ChevronRight className="w-5 h-5" />
@@ -140,7 +143,7 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
         </div>
 
         {/* Week Day Labels (Mon to Sun) */}
-        <div className="grid grid-cols-7 text-center text-xs font-bold text-slate-400 uppercase tracking-wider py-1 border-b border-surfaceBorder/60">
+        <div className="grid grid-cols-7 text-center text-xs font-bold text-zinc-400 uppercase tracking-wider py-1 border-b border-zinc-800/80">
           <span>Mon</span>
           <span>Tue</span>
           <span>Wed</span>
@@ -164,14 +167,15 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
                   onSelectDate(cell.dateStr);
                   onClose();
                 }}
+                aria-label={`Select ${cell.dateStr}`}
                 className={`h-11 rounded-2xl flex flex-col items-center justify-center transition border relative group ${
                   cell.isSelected
-                    ? 'bg-brand-600 border-brand-400 text-white shadow-lg shadow-brand-600/30 scale-105 z-10'
+                    ? 'bg-brand-600 border-brand-400 text-white shadow-md scale-105 z-10'
                     : cell.isToday
-                    ? 'bg-brand-500/20 border-brand-500/50 text-brand-300 font-bold'
+                    ? 'bg-brand-600/20 border-brand-500/50 text-brand-300 font-bold'
                     : cell.hasWorkout
-                    ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200 hover:border-emerald-400'
-                    : 'bg-card/40 border-surfaceBorder/60 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
+                    ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300 hover:border-emerald-400'
+                    : 'bg-[#18181b] border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-700'
                 }`}
               >
                 <span className={`text-xs font-black font-mono ${cell.isSelected ? 'text-white' : ''}`}>
@@ -182,7 +186,7 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
                 {cell.hasWorkout && (
                   <div
                     className={`w-1.5 h-1.5 rounded-full mt-0.5 ${
-                      cell.isSelected ? 'bg-white shadow-sm' : 'bg-emerald-400 shadow-sm shadow-emerald-400/50'
+                      cell.isSelected ? 'bg-white shadow-sm' : 'bg-emerald-400 shadow-sm'
                     }`}
                   />
                 )}
@@ -192,15 +196,15 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
         </div>
 
         {/* Quick Action Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-surfaceBorder">
+        <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
           <button
             onClick={jumpToToday}
-            className="px-4 py-2 rounded-xl bg-surface border border-surfaceBorder text-slate-300 font-bold text-xs hover:text-white transition"
+            className="px-4 py-2 rounded-xl bg-[#18181b] border border-zinc-800 text-zinc-300 font-bold text-xs hover:text-white transition"
           >
             Jump to Today
           </button>
 
-          <div className="flex items-center gap-3 text-[11px] text-slate-400">
+          <div className="flex items-center gap-3 text-[11px] text-zinc-400">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-400" /> Logged
             </span>

@@ -564,12 +564,12 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-32">
       {/* Weekly Activity Dashboard */}
-      <div className="bg-gradient-to-br from-[#12141d] via-[#181b26] to-[#121829] border border-surfaceBorder rounded-3xl p-5 mb-6 shadow-xl relative overflow-hidden">
+      <div className="bg-[#121215] border border-zinc-800 rounded-3xl p-5 mb-6 shadow-sm relative overflow-hidden">
         {/* The count and its pill stack vertically rather than competing with
             Month View for one row — side by side they overflowed on a phone. */}
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 shrink-0 rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 shadow-lg shadow-brand-500/10">
+            <div className="w-11 h-11 shrink-0 rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 shadow-md">
               <Dumbbell className="w-6 h-6" />
             </div>
             <div className="min-w-0">
@@ -585,7 +585,8 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
           {/* Month Calendar Quick Trigger Button */}
           <button
             onClick={() => setIsCalendarOpen(true)}
-            className="shrink-0 px-3 py-2.5 rounded-xl bg-surface border border-surfaceBorder hover:border-brand-500/50 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition shadow-md whitespace-nowrap"
+            aria-label="Open Month Calendar"
+            className="shrink-0 px-3 py-2.5 rounded-xl bg-[#18181b] border border-zinc-800 hover:border-zinc-700 text-zinc-200 text-xs font-bold flex items-center gap-1.5 transition shadow-sm whitespace-nowrap"
             title="Open Month Calendar"
           >
             <CalendarIcon className="w-4 h-4 text-brand-400" />
@@ -595,17 +596,18 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
         </div>
 
         {/* Weekly Activity Day Strip */}
-        <div className="grid grid-cols-7 gap-1.5 pt-2 border-t border-surfaceBorder/60">
+        <div className="grid grid-cols-7 gap-1.5 pt-2 border-t border-zinc-800/80">
           {weekDays.map((day) => (
             <button
               key={day.dateStr}
               onClick={() => onSelectDate(day.dateStr)}
+              aria-label={`Select ${day.dayName} ${day.dayNum}`}
               className={`p-2 rounded-2xl flex flex-col items-center justify-center transition border ${
                 day.isSelected
-                  ? 'bg-brand-600/20 border-brand-500 text-white shadow-md scale-105'
+                  ? 'bg-brand-600 border-brand-500 text-white shadow-sm scale-105'
                   : day.hasWorkout
-                  ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200 hover:border-emerald-400'
-                  : 'bg-card/40 border-surfaceBorder/60 text-slate-400 hover:border-slate-700'
+                  ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300 hover:border-emerald-400'
+                  : 'bg-[#18181b] border-zinc-800 text-zinc-400 hover:border-zinc-700'
               }`}
             >
               <span className="text-[10px] font-bold uppercase opacity-75">{day.dayName}</span>
@@ -613,9 +615,9 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
 
               <div className="mt-1">
                 {day.hasWorkout ? (
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm" />
                 ) : (
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-700/60" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-700" />
                 )}
               </div>
             </button>
@@ -634,7 +636,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
 
       {/* Daily Exercises List Overview */}
       {Array.from(exerciseGroupMap.entries()).length === 0 ? (
-        <div className="text-center py-14 px-4 bg-surface/50 border border-surfaceBorder/60 rounded-3xl">
+        <div className="text-center py-14 px-4 bg-[#121215] border border-zinc-800 rounded-3xl">
           <div className="w-16 h-16 rounded-2xl bg-brand-500/10 text-brand-400 flex items-center justify-center mx-auto mb-4 border border-brand-500/20">
             <Dumbbell className="w-8 h-8 transform -rotate-45" />
           </div>

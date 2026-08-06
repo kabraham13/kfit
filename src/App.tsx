@@ -114,7 +114,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090a0f] text-slate-100 selection:bg-brand-600 selection:text-white">
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 selection:bg-brand-600 selection:text-white">
       {/* Install PWA Prompt Banner */}
       <InstallPwaBanner />
 
@@ -176,7 +176,7 @@ export function App() {
       {/* Exit App Confirmation Modal */}
       {showExitModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-[#12141d] border border-surfaceBorder w-full max-w-xs rounded-3xl p-5 shadow-2xl space-y-4 text-center">
+          <div className="bg-[#121215] border border-zinc-800 w-full max-w-xs rounded-3xl p-5 shadow-2xl space-y-4 text-center">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
               <LogOut className="w-6 h-6" />
             </div>

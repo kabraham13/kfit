@@ -45,24 +45,25 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-[#090a0f]/95 backdrop-blur-md border-b border-surfaceBorder">
+    <header className="sticky top-0 z-30 bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-800">
       <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
         {/* Brand Logo */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center shadow-md">
             <Dumbbell className="w-5 h-5 text-white transform -rotate-45" />
           </div>
-          <h1 className="text-xl font-black tracking-tight text-white">
+          <h1 className="text-xl font-black tracking-tight text-white font-mono">
             kfit
           </h1>
         </div>
 
         {/* Date Navigator (Shown when on workout log view) */}
         {activeTab === 'workout' && (
-          <div className="flex items-center bg-surface border border-surfaceBorder rounded-xl p-1">
+          <div className="flex items-center bg-[#121215] border border-zinc-800 rounded-xl p-1 shadow-sm">
             <button
               onClick={() => shiftDate(-1)}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
+              aria-label="Previous Day"
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition"
               title="Previous Day"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -70,7 +71,8 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => setIsCalendarOpen(true)}
-              className="flex items-center gap-1.5 px-2 text-xs sm:text-sm font-semibold text-slate-200 hover:text-brand-400 transition"
+              aria-label="Open Month Calendar"
+              className="flex items-center gap-1.5 px-2.5 text-xs sm:text-sm font-bold text-zinc-200 hover:text-brand-400 transition"
               title="Open Month Calendar"
             >
               <Calendar className="w-3.5 h-3.5 text-brand-400 shrink-0" />
@@ -79,7 +81,8 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => shiftDate(1)}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
+              aria-label="Next Day"
+              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition"
               title="Next Day"
             >
               <ChevronRight className="w-4 h-4" />
@@ -90,10 +93,11 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Settings Icon Button in Top Right */}
         <button
           onClick={() => setActiveTab(activeTab === 'settings' ? 'workout' : 'settings')}
-          className={`p-2.5 rounded-xl border transition shadow-md ${
+          aria-label="Settings and Backup"
+          className={`p-2.5 rounded-xl border transition shadow-sm ${
             activeTab === 'settings'
-              ? 'bg-brand-600 border-brand-500 text-white shadow-brand-600/30'
-              : 'bg-surface border-surfaceBorder text-slate-400 hover:text-white hover:border-slate-700'
+              ? 'bg-brand-600 border-brand-500 text-white'
+              : 'bg-[#121215] border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
           }`}
           title="Settings & Backup"
         >
@@ -112,10 +116,10 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Active Rest Timer Top Bar (Ticking down when navigating outside or back) */}
       {timerSecondsLeft !== null && (
-        <div className="bg-[#12141d] border-t border-brand-500/30 px-4 py-2 flex items-center justify-between text-xs font-mono">
+        <div className="bg-[#121215] border-t border-zinc-800 px-4 py-2 flex items-center justify-between text-xs font-mono">
           <div className="flex items-center gap-2 font-bold text-white">
             <Bell className="w-4 h-4 text-brand-400 animate-pulse" />
-            <span className="text-slate-400 uppercase tracking-wider text-[10px]">Rest Timer:</span>
+            <span className="text-zinc-400 uppercase tracking-wider text-[10px]">Rest Timer:</span>
             <span className="text-sm font-black text-brand-400 font-mono">
               {formatTimerTime(timerSecondsLeft)}
             </span>
