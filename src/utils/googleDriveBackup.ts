@@ -11,6 +11,12 @@ const STORAGE_KEY_LAST_BACKUP_MS = 'kfit_gdrive_last_backup_ms';
 const STORAGE_KEY_LINKED = 'kfit_gdrive_linked';
 const STORAGE_KEY_NEEDS_REAUTH = 'kfit_gdrive_needs_reauth';
 const STORAGE_KEY_LAST_ERROR = 'kfit_gdrive_last_error';
+// Last silent-renew outcome, verbatim, so Settings can say *why* rather than a
+// generic "reconnect".
+const STORAGE_KEY_RENEW_DIAG = 'kfit_gdrive_renew_diag';
+// Backoff gate: a transient renew failure should retry later, not hammer GIS on
+// every window focus.
+const STORAGE_KEY_NEXT_RENEW_MS = 'kfit_gdrive_next_renew_ms';
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const MAX_BACKUPS_TO_RETAIN = 7; // Keep rolling 7 most recent backups (1 week)
@@ -22,6 +28,18 @@ const DEFAULT_CLIENT_ID =
   (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID ||
   '727165202795-3e4em19rp6c5neeos6sk92t5dv66i54r.apps.googleusercontent.com';
 
+export interface RenewDiagnostic {
+  /** Epoch ms of the attempt. */
+  at: number;
+  ok: boolean;
+  /** GIS/OAuth error code, or 'ok'. */
+  code: string;
+  message: string;
+  /** True when retrying later could plausibly succeed with no user action. */
+  transient: boolean;
+  consecutiveFailures: number;
+}
+
 export interface GoogleDriveStatus {
   isConnected: boolean;
   /** Still linked, but the token could not be renewed without user action. */
@@ -30,6 +48,10 @@ export interface GoogleDriveStatus {
   userEmail?: string;
   lastBackupTime?: string;
   autoBackupEnabled: boolean;
+  /** Result of the most recent silent-renew attempt, for troubleshooting. */
+  renewDiagnostic?: RenewDiagnostic;
+  /** Epoch ms before which no further silent renew will be attempted. */
+  nextRenewAttemptMs?: number;
 }
 
 // Migration: accounts linked under the old implicit flow have a token but no
@@ -57,7 +79,20 @@ export function getStoredGDriveStatus(): GoogleDriveStatus {
     userEmail: localStorage.getItem(STORAGE_KEY_USER) || undefined,
     lastBackupTime: localStorage.getItem(STORAGE_KEY_LAST_BACKUP) || undefined,
     autoBackupEnabled: localStorage.getItem('kfit_gdrive_autobackup') === 'true',
+    renewDiagnostic: readRenewDiagnostic(),
+    nextRenewAttemptMs: Number(localStorage.getItem(STORAGE_KEY_NEXT_RENEW_MS) || '0') || undefined,
   };
+}
+
+function readRenewDiagnostic(): RenewDiagnostic | undefined {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_RENEW_DIAG);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.at === 'number' ? (parsed as RenewDiagnostic) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function setSyncError(message: string | null) {
@@ -75,8 +110,108 @@ function markNeedsReauth(message: string) {
 
 function markHealthy() {
   localStorage.removeItem(STORAGE_KEY_NEEDS_REAUTH);
+  localStorage.removeItem(STORAGE_KEY_NEXT_RENEW_MS);
   setSyncError(null);
   notifyStatusChanged();
+}
+
+// --- Renew failure classification --------------------------------------------
+
+/**
+ * A renew failure that genuinely requires the user: the grant is gone, revoked,
+ * or Google will not issue a token without an interactive prompt. Only these
+ * justify parking the UI on "Reconnect".
+ */
+const DEFINITIVE_CODES = new Set([
+  'access_denied',
+  'invalid_grant',
+  'consent_required',
+  'interaction_required',
+  'login_required',
+  'admin_policy_enforced',
+  'unauthorized_client',
+  'invalid_client',
+  'invalid_scope',
+]);
+
+class TokenRenewError extends Error {
+  code: string;
+  transient: boolean;
+  constructor(message: string, code: string, transient: boolean) {
+    super(message);
+    this.name = 'TokenRenewError';
+    this.code = code;
+    this.transient = transient;
+  }
+}
+
+/**
+ * Anything not on the definitive list is treated as transient. That asymmetry is
+ * deliberate: wrongly retrying costs a background request, wrongly latching
+ * "Reconnect" silently stops backups until the user notices.
+ */
+function classify(code: string, message: string): TokenRenewError {
+  return new TokenRenewError(message, code, !DEFINITIVE_CODES.has(code));
+}
+
+function asRenewError(err: unknown): TokenRenewError {
+  if (err instanceof TokenRenewError) return err;
+  const message = (err as any)?.message || 'Unknown error renewing Google Drive access.';
+  return new TokenRenewError(message, 'unknown', true);
+}
+
+// 30s, 1m, 2m, 4m, 8m, then capped. Long enough not to spam GIS on every focus,
+// short enough that a session recovers within one gym visit.
+const RENEW_BACKOFF_STEPS_MS = [30_000, 60_000, 120_000, 240_000, 480_000];
+const RENEW_BACKOFF_CAP_MS = 15 * 60 * 1000;
+
+function writeRenewDiagnostic(diag: RenewDiagnostic) {
+  try {
+    localStorage.setItem(STORAGE_KEY_RENEW_DIAG, JSON.stringify(diag));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function recordRenewSuccess() {
+  writeRenewDiagnostic({
+    at: Date.now(),
+    ok: true,
+    code: 'ok',
+    message: 'Access renewed silently.',
+    transient: false,
+    consecutiveFailures: 0,
+  });
+  localStorage.removeItem(STORAGE_KEY_NEXT_RENEW_MS);
+}
+
+function recordRenewFailure(err: TokenRenewError) {
+  const previous = readRenewDiagnostic();
+  const consecutiveFailures = (previous && !previous.ok ? previous.consecutiveFailures : 0) + 1;
+
+  writeRenewDiagnostic({
+    at: Date.now(),
+    ok: false,
+    code: err.code,
+    message: err.message,
+    transient: err.transient,
+    consecutiveFailures,
+  });
+
+  if (err.transient) {
+    const step =
+      RENEW_BACKOFF_STEPS_MS[Math.min(consecutiveFailures - 1, RENEW_BACKOFF_STEPS_MS.length - 1)] ??
+      RENEW_BACKOFF_CAP_MS;
+    localStorage.setItem(
+      STORAGE_KEY_NEXT_RENEW_MS,
+      String(Date.now() + Math.min(step, RENEW_BACKOFF_CAP_MS))
+    );
+  }
+}
+
+function renewBackoffActive(): boolean {
+  const next = Number(localStorage.getItem(STORAGE_KEY_NEXT_RENEW_MS) || '0');
+  return next > Date.now();
 }
 
 /** Lets the Settings UI react when a background sync changes connection state. */
@@ -112,7 +247,13 @@ function loadGisScript(): Promise<void> {
     script.onload = () => resolve();
     script.onerror = () => {
       gisLoadPromise = null;
-      reject(new Error('Could not reach Google sign-in. Check your connection.'));
+      reject(
+        new TokenRenewError(
+          'Could not reach Google sign-in. Check your connection.',
+          'script_load_failed',
+          true
+        )
+      );
     };
     document.head.appendChild(script);
   });
@@ -140,7 +281,10 @@ async function getTokenClient(clientId?: string) {
       if (!pending) return;
 
       if (response.error || !response.access_token) {
-        pending.reject(new Error(response.error_description || response.error || 'Authorization failed.'));
+        const code = String(response.error || 'no_token_returned');
+        pending.reject(
+          classify(code, response.error_description || `Google returned "${code}".`)
+        );
         return;
       }
 
@@ -155,7 +299,11 @@ async function getTokenClient(clientId?: string) {
     error_callback: (err: any) => {
       const pending = pendingTokenRequest;
       pendingTokenRequest = null;
-      pending?.reject(new Error(err?.message || 'Authorization was dismissed.'));
+      // GIS reports `type` here: popup_failed_to_open (blocked, because a silent
+      // renew is not a user gesture), popup_closed, or unknown. None of these
+      // mean the grant is gone, so all classify as transient.
+      const code = String(err?.type || 'unknown');
+      pending?.reject(classify(code, err?.message || `Authorization did not complete (${code}).`));
     },
   });
 
@@ -172,7 +320,11 @@ async function requestToken(interactive: boolean, clientId?: string): Promise<st
   const client = await getTokenClient(clientId);
 
   if (pendingTokenRequest) {
-    throw new Error('A Google Drive authorization is already in progress.');
+    throw new TokenRenewError(
+      'A Google Drive authorization is already in progress.',
+      'request_in_flight',
+      true
+    );
   }
 
   return new Promise<string>((resolve, reject) => {
@@ -181,7 +333,13 @@ async function requestToken(interactive: boolean, clientId?: string): Promise<st
     const timeoutId = window.setTimeout(() => {
       if (pendingTokenRequest) {
         pendingTokenRequest = null;
-        reject(new Error('Google Drive session could not be renewed silently.'));
+        reject(
+          new TokenRenewError(
+            'Google Drive did not respond in time.',
+            'timeout',
+            true
+          )
+        );
       }
     }, interactive ? 120_000 : 15_000);
 
@@ -204,7 +362,13 @@ async function requestToken(interactive: boolean, clientId?: string): Promise<st
     } catch (err: any) {
       window.clearTimeout(timeoutId);
       pendingTokenRequest = null;
-      reject(new Error(err?.message || 'Could not start Google authorization.'));
+      reject(
+        new TokenRenewError(
+          err?.message || 'Could not start Google authorization.',
+          'request_failed',
+          true
+        )
+      );
     }
   });
 }
@@ -232,21 +396,46 @@ export async function getValidAccessToken(forceRenew = false): Promise<string> {
   }
 
   try {
-    return await requestToken(false);
+    const token = await requestToken(false);
+    recordRenewSuccess();
+    // A successful silent renew clears any stale "reconnect" state.
+    markHealthy();
+    return token;
   } catch (err) {
     // Being offline is not a broken grant — don't nag the user to reconnect
     // over a dropped signal in the gym.
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      throw new Error('No connection — Google Drive backup will retry when you are back online.');
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    const renewErr = offline
+      ? new TokenRenewError(
+          'No connection — Google Drive backup will retry when you are back online.',
+          'offline',
+          true
+        )
+      : asRenewError(err);
+
+    recordRenewFailure(renewErr);
+
+    // Only a definitive signal parks the UI on "Reconnect". A timeout, a blocked
+    // popup, or a dropped connection used to latch that flag permanently, which
+    // is what made the link look like it broke every day.
+    if (!renewErr.transient) {
+      markNeedsReauth(
+        `Google Drive access needs to be renewed (${renewErr.code}). Tap Reconnect to resume backups.`
+      );
+      throw new Error(`Google Drive access was revoked or expired (${renewErr.code}).`);
     }
-    markNeedsReauth('Google Drive needs to be reconnected — tap Reconnect to resume backups.');
-    throw new Error('Google Drive session expired and could not be renewed. Please reconnect.');
+
+    setSyncError(`Could not renew Google Drive access (${renewErr.code}). Will retry automatically.`);
+    notifyStatusChanged();
+    throw renewErr;
   }
 }
 
 /** Interactive link/re-link. Must be called from a user gesture. */
 export async function initiateGoogleDriveAuth(clientId?: string): Promise<string> {
   const token = await requestToken(true, clientId);
+  recordRenewSuccess();
+  markHealthy();
   await fetchAndStoreUserEmail(token);
   return token;
 }
@@ -286,6 +475,8 @@ export function disconnectGoogleDrive() {
   localStorage.removeItem(STORAGE_KEY_LINKED);
   localStorage.removeItem(STORAGE_KEY_NEEDS_REAUTH);
   localStorage.removeItem(STORAGE_KEY_LAST_ERROR);
+  localStorage.removeItem(STORAGE_KEY_RENEW_DIAG);
+  localStorage.removeItem(STORAGE_KEY_NEXT_RENEW_MS);
   localStorage.setItem('kfit_gdrive_autobackup', 'false');
   notifyStatusChanged();
 }
@@ -501,11 +692,14 @@ export async function ensureDriveSessionFresh() {
   const status = getStoredGDriveStatus();
   if (!status.isConnected || status.needsReauth) return;
   if (getCachedToken()) return;
+  // A previous transient failure asked us to wait before trying again. Unlike
+  // the old behaviour this expires on its own — it never permanently gives up.
+  if (renewBackoffActive()) return;
 
   try {
     await getValidAccessToken();
   } catch {
-    // getValidAccessToken already flagged re-auth and notified the UI.
+    // getValidAccessToken already recorded the outcome and notified the UI.
   }
 }
 

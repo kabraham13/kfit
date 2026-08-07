@@ -12,6 +12,7 @@ import {
   CloudUpload,
   Unlink,
   Check,
+  ChevronDown,
   Link as LinkIcon
 } from 'lucide-react';
 import {
@@ -23,6 +24,85 @@ import {
   GDRIVE_STATUS_EVENT,
   GoogleDriveStatus
 } from '../utils/googleDriveBackup';
+
+function formatAgo(ms: number) {
+  const secs = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (secs < 60) return `${secs}s ago`;
+  if (secs < 3600) return `${Math.round(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.round(secs / 3600)}h ago`;
+  return `${Math.round(secs / 86400)}d ago`;
+}
+
+/**
+ * Last silent-renew outcome. Access tokens only live an hour and a static site
+ * has no refresh token, so renewal happens constantly in the background — when
+ * it stops working this is the only place that says why.
+ */
+const DriveDiagnostics: React.FC<{ status: GoogleDriveStatus }> = ({ status }) => {
+  const [expanded, setExpanded] = useState(false);
+  const diag = status.renewDiagnostic;
+  if (!diag) return null;
+
+  const waiting =
+    status.nextRenewAttemptMs && status.nextRenewAttemptMs > Date.now()
+      ? Math.round((status.nextRenewAttemptMs - Date.now()) / 1000)
+      : 0;
+
+  return (
+    <div className="pt-1">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="w-full text-[11px] font-semibold text-slate-500 hover:text-slate-300 flex items-center justify-center gap-1.5 transition"
+      >
+        <span
+          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+            diag.ok ? 'bg-emerald-500' : diag.transient ? 'bg-amber-500' : 'bg-rose-500'
+          }`}
+        />
+        <span>
+          Session {diag.ok ? 'renewed' : 'renew failed'} {formatAgo(diag.at)}
+        </span>
+        <ChevronDown className={`w-3 h-3 transition ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      {expanded && (
+        <div className="mt-2 p-3 rounded-2xl bg-[#09090b] border border-zinc-800 space-y-1.5 text-[11px] text-slate-400 font-mono break-words">
+          <div>
+            <span className="text-slate-500">outcome</span>{' '}
+            <span className={diag.ok ? 'text-emerald-400' : diag.transient ? 'text-amber-400' : 'text-rose-400'}>
+              {diag.ok ? 'ok' : diag.transient ? 'transient' : 'needs re-auth'}
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-500">code</span>{' '}
+            <span className="text-slate-200">{diag.code}</span>
+          </div>
+          <div>
+            <span className="text-slate-500">detail</span>{' '}
+            <span className="text-slate-200">{diag.message}</span>
+          </div>
+          {!diag.ok && (
+            <div>
+              <span className="text-slate-500">consecutive</span>{' '}
+              <span className="text-slate-200">{diag.consecutiveFailures}</span>
+            </div>
+          )}
+          {waiting > 0 && (
+            <div>
+              <span className="text-slate-500">retry in</span>{' '}
+              <span className="text-slate-200">{waiting}s</span>
+            </div>
+          )}
+          <div>
+            <span className="text-slate-500">at</span>{' '}
+            <span className="text-slate-200">{new Date(diag.at).toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface SettingsViewProps {
   weightUnit: 'lbs' | 'kg';
@@ -261,6 +341,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 Last API backup to Drive: <span className="text-emerald-400 font-bold">{gdriveStatus.lastBackupTime}</span>
               </div>
             )}
+
+            <DriveDiagnostics status={gdriveStatus} />
           </div>
         )}
 

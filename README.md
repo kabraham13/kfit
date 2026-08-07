@@ -86,9 +86,16 @@ needs no configuration. If you fork this and want your own client:
 4. Set `VITE_GOOGLE_CLIENT_ID` at build time, or edit the default in
    `src/utils/googleDriveBackup.ts`.
 
-Access tokens last an hour and are renewed silently in the background. If the
-grant is genuinely revoked, Settings shows a "Reconnect" prompt rather than
-failing quietly.
+5. Set the OAuth consent screen's **Publishing status** to *In production*. While
+   it is in *Testing*, Google expires the grant after 7 days and you will be
+   asked to sign in again roughly daily. `drive.file` is a non-sensitive scope,
+   so publishing does not require going through verification review.
+
+Access tokens last an hour and are renewed silently in the background — there is
+no refresh token, because there is no server. Renewal failures are classified:
+transient ones (blocked popup, timeout, offline) retry with backoff, while a
+genuinely revoked grant shows a "Reconnect" prompt. Settings has an expandable
+"Session renewed / renew failed" line showing the last renewal's error code.
 
 ## Data and privacy
 
