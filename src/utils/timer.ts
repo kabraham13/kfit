@@ -2,6 +2,7 @@
 // them at ~6 per page) and a fresh context starts suspended when the page is
 // backgrounded, so the chime never sounds. One context, resumed on user gesture.
 let audioCtx: AudioContext | null = null;
+let chimeAudioEl: HTMLAudioElement | null = null;
 
 function getAudioContext(): AudioContext | null {
   try {
@@ -16,12 +17,45 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
-/** Call from a user gesture (e.g. tapping "start timer") to unlock audio. */
+/** Call from a user gesture (e.g. tapping "start timer") to unlock audio on mobile. */
 export function primeAudio() {
   getAudioContext();
+  try {
+    if (!chimeAudioEl) {
+      chimeAudioEl = new Audio('/kfit/chime.wav');
+    }
+    // Silent play/pause cycle during user gesture unlocks HTML5 audio for screen-off playback
+    chimeAudioEl.volume = 0.01;
+    void chimeAudioEl
+      .play()
+      .then(() => {
+        if (chimeAudioEl) {
+          chimeAudioEl.pause();
+          chimeAudioEl.currentTime = 0;
+          chimeAudioEl.volume = 1.0;
+        }
+      })
+      .catch(() => {});
+  } catch (err) {
+    console.warn('Could not prime HTML5 audio:', err);
+  }
 }
 
 export async function playRestTimerChime() {
+  // 1. Primary: HTML5 Audio file playback (unlocked by user gesture, works when screen is off)
+  try {
+    if (!chimeAudioEl) {
+      chimeAudioEl = new Audio('/kfit/chime.wav');
+    }
+    chimeAudioEl.volume = 1.0;
+    chimeAudioEl.currentTime = 0;
+    await chimeAudioEl.play();
+    return;
+  } catch (err) {
+    console.warn('HTML5 chime playback failed, falling back to WebAudio:', err);
+  }
+
+  // 2. Fallback: WebAudio synthesizer
   const ctx = getAudioContext();
   if (!ctx) return;
   try {
@@ -30,7 +64,6 @@ export async function playRestTimerChime() {
     }
     const start = ctx.currentTime;
 
-    // 3 chime bursts spread over 2.5 seconds so the alert rings out clearly
     const bursts = [
       { delay: 0.0, freqs: [659.25, 830.61, 987.77] },
       { delay: 0.75, freqs: [659.25, 830.61, 987.77, 1318.51] },

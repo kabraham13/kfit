@@ -16,7 +16,7 @@ export default defineConfig({
     VitePWA({
       injectRegister: 'auto',
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'pwa-192.png', 'pwa-512.png', 'robots.txt'],
+      includeAssets: ['favicon.svg', 'pwa-192.png', 'pwa-512.png', 'robots.txt', 'chime.wav'],
       manifest: {
         name: 'kfit - Gym & Workout Logger',
         short_name: 'kfit',
@@ -44,7 +44,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,wav}'],
         // Adds the notificationclick handler for the rest-timer notification
         importScripts: ['sw-notifications.js']
       }
