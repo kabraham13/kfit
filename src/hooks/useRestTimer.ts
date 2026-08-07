@@ -98,16 +98,12 @@ export function useRestTimer(defaultTimerSec: number) {
     setSecondsLeft(remaining);
 
     // Keep the lock-screen countdown current while the app is in the
-    // background. Update every 15s rather than 1s to prevent Chrome from
-    // rate-limiting background notification IPC and killing the background tab.
-    if (document.hidden && remaining > 0) {
-      if (
-        lastNotifiedSecondRef.current === null ||
-        lastNotifiedSecondRef.current - remaining >= 15
-      ) {
-        lastNotifiedSecondRef.current = remaining;
-        void showOngoingTimerNotification(remaining);
-      }
+    // background with 1-second granularity. Service Worker (sw-notifications.js)
+    // holds the standalone SCHEDULE_REST_TIMER timeout, ensuring the completion chime
+    // and vibration fire at 0:00 even if Chrome throttles background notification updates.
+    if (document.hidden && remaining > 0 && remaining !== lastNotifiedSecondRef.current) {
+      lastNotifiedSecondRef.current = remaining;
+      void showOngoingTimerNotification(remaining);
     }
   }, [fireAlert, persist]);
 
