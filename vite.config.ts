@@ -4,6 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   base: '/kfit/',
+  define: {
+    __APP_VERSION__: JSON.stringify('v1.1.0'),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString().replace('T', ' ').substring(0, 16) + ' UTC'),
+  },
   build: {
     minify: 'esbuild'
   },

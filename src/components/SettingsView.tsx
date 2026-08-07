@@ -480,22 +480,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-3.5 bg-card rounded-2xl border border-surfaceBorder">
+        <div className="flex items-center justify-between p-3.5 bg-[#18181b] rounded-2xl border border-zinc-800">
           <div>
             <div className="font-bold text-white text-sm">Default Rest Timer</div>
-            <div className="text-xs text-slate-400">Auto-starts upon set completion</div>
+            <div className="text-xs text-zinc-400">Auto-starts upon set completion</div>
           </div>
 
           <select
             value={defaultTimerSec}
             onChange={(e) => updateTimerSetting(Number(e.target.value))}
-            className="bg-[#090a0f] border border-surfaceBorder focus:border-brand-500 text-white font-bold px-3 py-2 rounded-xl text-xs outline-none cursor-pointer"
+            aria-label="Default Rest Timer"
+            className="bg-[#09090b] border border-zinc-800 focus:border-brand-500 text-white font-bold px-3 py-2 rounded-xl text-xs outline-none cursor-pointer"
           >
             <option value={60}>60 Seconds (1 min)</option>
             <option value={90}>90 Seconds (1.5 min)</option>
             <option value={120}>120 Seconds (2 min)</option>
             <option value={180}>180 Seconds (3 min)</option>
           </select>
+        </div>
+      </div>
+
+      {/* App Version & PWA Build Info */}
+      <div className="bg-[#121215] border border-zinc-800 rounded-3xl p-4 text-center shadow-sm space-y-1">
+        <div className="text-xs font-mono font-extrabold text-zinc-200">
+          kfit <span className="text-brand-400 font-black">{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'v1.1.0'}</span>
+        </div>
+        <div className="text-[10px] font-mono text-zinc-400">
+          Build: {typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'Latest'}
         </div>
       </div>
 
