@@ -21,10 +21,13 @@ export function primeAudio() {
   getAudioContext();
 }
 
-export function playRestTimerChime() {
+export async function playRestTimerChime() {
   const ctx = getAudioContext();
   if (!ctx) return;
   try {
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
     const start = ctx.currentTime;
 
     // 3 chime bursts spread over 2.5 seconds so the alert rings out clearly
@@ -60,42 +63,67 @@ export function playRestTimerChime() {
   }
 }
 
-// Near-silent oscillator kept running while a rest timer is counting down.
-// Chrome throttles background pages hard (timers clamped to once per minute, or
-// frozen outright), but a page producing audio is exempt. WebAudio is used rather
-// than an <audio> element so we mix with the user's music instead of stealing
-// audio focus and pausing it.
+// Dual Keep-Alive: WebAudio + silent HTML5 Audio loop.
+// Android Chrome suspends WebAudio when screen turns off unless an HTML5 audio element
+// is actively playing. A 1-second silent WAV loop prevents Android OS deep sleep.
+const SILENT_WAV_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
 let keepAliveNodes: { osc: OscillatorNode; gain: GainNode } | null = null;
+let silentAudioEl: HTMLAudioElement | null = null;
 
 export function startBackgroundKeepAlive() {
-  if (keepAliveNodes) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
+  // 1. WebAudio oscillator keep-alive
+  if (!keepAliveNodes) {
+    const ctx = getAudioContext();
+    if (ctx) {
+      try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(20, ctx.currentTime);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        keepAliveNodes = { osc, gain };
+      } catch (err) {
+        console.warn('Keep-alive WebAudio error:', err);
+      }
+    }
+  }
+
+  // 2. HTML5 Audio keep-alive (prevents Android OS screen-off deep sleep)
   try {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(20, ctx.currentTime);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    keepAliveNodes = { osc, gain };
+    if (!silentAudioEl) {
+      silentAudioEl = new Audio(SILENT_WAV_URI);
+      silentAudioEl.loop = true;
+    }
+    void silentAudioEl.play().catch(() => {});
   } catch (err) {
-    console.warn('Keep-alive start error:', err);
+    console.warn('Keep-alive HTML5 audio error:', err);
   }
 }
 
 export function stopBackgroundKeepAlive() {
-  if (!keepAliveNodes) return;
-  try {
-    keepAliveNodes.osc.stop();
-    keepAliveNodes.osc.disconnect();
-    keepAliveNodes.gain.disconnect();
-  } catch (err) {
-    console.warn('Keep-alive stop error:', err);
+  if (keepAliveNodes) {
+    try {
+      keepAliveNodes.osc.stop();
+      keepAliveNodes.osc.disconnect();
+      keepAliveNodes.gain.disconnect();
+    } catch (err) {
+      console.warn('Keep-alive WebAudio stop error:', err);
+    }
+    keepAliveNodes = null;
   }
-  keepAliveNodes = null;
+
+  if (silentAudioEl) {
+    try {
+      silentAudioEl.pause();
+      silentAudioEl.currentTime = 0;
+    } catch (err) {
+      console.warn('Keep-alive HTML5 audio stop error:', err);
+    }
+  }
 }
 
 export function triggerTimerVibration() {

@@ -69,7 +69,8 @@ export function useRestTimer(defaultTimerSec: number) {
   const fireAlert = useCallback(() => {
     if (firedRef.current) return;
     firedRef.current = true;
-    playRestTimerChime();
+    primeAudio();
+    void playRestTimerChime();
     triggerTimerVibration();
     void showTimerNotification('Rest Timer Complete! 🔔', 'Time for your next set!');
     stopBackgroundKeepAlive();
