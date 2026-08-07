@@ -204,3 +204,27 @@ export async function showTimerNotification(title: string, body: string) {
     console.warn('Notification error:', err);
   }
 }
+
+export async function scheduleServiceWorkerTimer(endsAt: number) {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (reg.active) {
+      reg.active.postMessage({ type: 'SCHEDULE_REST_TIMER', endsAt });
+    }
+  } catch (err) {
+    console.warn('Could not schedule SW timer:', err);
+  }
+}
+
+export async function cancelServiceWorkerTimer() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (reg.active) {
+      reg.active.postMessage({ type: 'CANCEL_REST_TIMER' });
+    }
+  } catch (err) {
+    console.warn('Could not cancel SW timer:', err);
+  }
+}

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  cancelServiceWorkerTimer,
   clearTimerNotification,
   playRestTimerChime,
   primeAudio,
   requestNotificationPermission,
+  scheduleServiceWorkerTimer,
   showOngoingTimerNotification,
   showTimerNotification,
   startBackgroundKeepAlive,
@@ -51,8 +53,8 @@ export function useRestTimer(defaultTimerSec: number) {
   const endsAtRef = useRef<number | null>(null);
   const firedRef = useRef<boolean>(false);
   const totalRef = useRef<number>(defaultTimerSec);
-  // Last value pushed to the ongoing notification, so we re-post once per
-  // second rather than on every 250ms tick.
+  // Last value pushed to the ongoing notification, so we re-post every 15s
+  // rather than every 1s to prevent Chrome from rate-limiting background IPC.
   const lastNotifiedSecondRef = useRef<number | null>(null);
 
   const persist = useCallback((remaining: number | null) => {
@@ -84,6 +86,7 @@ export function useRestTimer(defaultTimerSec: number) {
       setIsActive(false);
       endsAtRef.current = null;
       lastNotifiedSecondRef.current = null;
+      void cancelServiceWorkerTimer();
       // Clear rather than parking at 0:00 — a finished timer offering "Resume"
       // and "Stop" is just clutter above the log. The chime, vibration and
       // notification have already fired.
@@ -95,11 +98,16 @@ export function useRestTimer(defaultTimerSec: number) {
     setSecondsLeft(remaining);
 
     // Keep the lock-screen countdown current while the app is in the
-    // background. Pointless while the app is on screen, where the overlay
-    // already shows the time.
-    if (document.hidden && remaining !== lastNotifiedSecondRef.current) {
-      lastNotifiedSecondRef.current = remaining;
-      void showOngoingTimerNotification(remaining);
+    // background. Update every 15s rather than 1s to prevent Chrome from
+    // rate-limiting background notification IPC and killing the background tab.
+    if (document.hidden && remaining > 0) {
+      if (
+        lastNotifiedSecondRef.current === null ||
+        lastNotifiedSecondRef.current - remaining >= 15
+      ) {
+        lastNotifiedSecondRef.current = remaining;
+        void showOngoingTimerNotification(remaining);
+      }
     }
   }, [fireAlert, persist]);
 
@@ -118,6 +126,7 @@ export function useRestTimer(defaultTimerSec: number) {
         endsAtRef.current = saved.endsAt;
         setSecondsLeft(remaining);
         setIsActive(true);
+        void scheduleServiceWorkerTimer(saved.endsAt);
         return;
       }
       // Expired while we were away — a finished timer is not shown at all.
@@ -149,7 +158,11 @@ export function useRestTimer(defaultTimerSec: number) {
       if (document.hidden) {
         // Post the countdown immediately on leaving, so it is on the lock
         // screen right away rather than up to a second later.
-        if (endsAtRef.current !== null) sync();
+        if (endsAtRef.current !== null) {
+          const rem = Math.max(0, Math.ceil((endsAtRef.current - Date.now()) / 1000));
+          lastNotifiedSecondRef.current = rem;
+          void showOngoingTimerNotification(rem);
+        }
         return;
       }
       // Back in the app — the overlay takes over, so retire the notification.
@@ -175,6 +188,7 @@ export function useRestTimer(defaultTimerSec: number) {
   const start = useCallback(
     (sec?: number) => {
       const duration = sec || defaultTimerSec;
+      const endsAt = Date.now() + duration * 1000;
 
       // Both of these need the user gesture that got us here: audio must be
       // unlocked before it can play from the background, and Android only shows
@@ -184,12 +198,13 @@ export function useRestTimer(defaultTimerSec: number) {
 
       totalRef.current = duration;
       firedRef.current = false;
-      endsAtRef.current = Date.now() + duration * 1000;
+      endsAtRef.current = endsAt;
 
       setTotalSeconds(duration);
       setSecondsLeft(duration);
       setIsActive(true);
       startBackgroundKeepAlive();
+      void scheduleServiceWorkerTimer(endsAt);
       persist(null);
     },
     [defaultTimerSec, persist]
@@ -205,6 +220,7 @@ export function useRestTimer(defaultTimerSec: number) {
       setSecondsLeft(remaining);
       setIsActive(false);
       stopBackgroundKeepAlive();
+      void cancelServiceWorkerTimer();
       persist(remaining);
       lastNotifiedSecondRef.current = null;
       if (document.hidden) void showOngoingTimerNotification(remaining, true);
@@ -212,22 +228,26 @@ export function useRestTimer(defaultTimerSec: number) {
     } else {
       const remaining = secondsLeft ?? totalRef.current;
       if (remaining <= 0) return;
+      const endsAt = Date.now() + remaining * 1000;
       firedRef.current = false;
-      endsAtRef.current = Date.now() + remaining * 1000;
+      endsAtRef.current = endsAt;
       setIsActive(true);
       primeAudio();
       startBackgroundKeepAlive();
+      void scheduleServiceWorkerTimer(endsAt);
       persist(null);
     }
   }, [isActive, secondsLeft, persist]);
 
   const reset = useCallback(() => {
+    const endsAt = Date.now() + totalRef.current * 1000;
     firedRef.current = false;
-    endsAtRef.current = Date.now() + totalRef.current * 1000;
+    endsAtRef.current = endsAt;
     setSecondsLeft(totalRef.current);
     setIsActive(true);
     primeAudio();
     startBackgroundKeepAlive();
+    void scheduleServiceWorkerTimer(endsAt);
     persist(null);
   }, [persist]);
 
@@ -241,7 +261,9 @@ export function useRestTimer(defaultTimerSec: number) {
 
       if (isActive) {
         firedRef.current = updated > 0 ? false : firedRef.current;
-        endsAtRef.current = Date.now() + updated * 1000;
+        const endsAt = Date.now() + updated * 1000;
+        endsAtRef.current = endsAt;
+        void scheduleServiceWorkerTimer(endsAt);
         persist(null);
       } else {
         persist(updated);
@@ -257,6 +279,7 @@ export function useRestTimer(defaultTimerSec: number) {
     setIsActive(false);
     setSecondsLeft(null);
     stopBackgroundKeepAlive();
+    void cancelServiceWorkerTimer();
     void clearTimerNotification();
     writePersisted(null);
   }, []);
