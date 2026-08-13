@@ -10,7 +10,6 @@ import { parseLocalDate, toLocalISODate } from '../utils/date';
 import { PlateLoadBar } from './PlateLoadBar';
 import { equipmentOf, defaultPlatesFor } from '../utils/plates';
 import { ExerciseNoteField } from './ExerciseNoteField';
-import { ExerciseEquipmentControl } from './ExerciseEquipmentControl';
 import { MonthCalendarModal } from './MonthCalendarModal';
 import { triggerAutoBackupIfEnabled } from '../utils/googleDriveBackup';
 
@@ -381,15 +380,6 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
             </span>
           </div>
         </div>
-
-        {/* Equipment / bar weight, which drive the plate breakdown below. */}
-        {!isCardio && exInfo && (
-          <ExerciseEquipmentControl
-            exercise={exInfo}
-            defaultBarWeight={settings?.defaultBarWeight ?? unitDefaults.bar}
-            weightUnit={weightUnit}
-          />
-        )}
 
         {/* Last session — the reference point for whether today is progress.
             Without it you have to leave the exercise to answer that. */}

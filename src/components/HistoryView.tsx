@@ -5,6 +5,8 @@ import { Award, Calendar, Trophy, TrendingUp } from 'lucide-react';
 import { calculate1RM } from '../utils/prCalculator';
 import { ExerciseProgressChart } from './ExerciseProgressChart';
 import { parseLocalDate } from '../utils/date';
+import { ExerciseEquipmentControl } from './ExerciseEquipmentControl';
+import { defaultPlatesFor } from '../utils/plates';
 
 interface HistoryViewProps {
   initialExerciseId?: string | null;
@@ -16,6 +18,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   weightUnit
 }) => {
   const exercises = useLiveQuery(() => db.exercises.toArray());
+  const settings = useLiveQuery(() => db.userSettings.get('default'));
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>(
     initialExerciseId || 'barbell-bench-press'
   );
@@ -98,6 +101,22 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               <Trophy className="w-6 h-6" />
             </div>
           </div>
+
+          {/* Equipment lives here rather than in the workout log: it is set once
+              per exercise and then never touched, so it was pure clutter above
+              every set of every session. */}
+          {!selectedExercise.isCardio && (
+            <div className="mb-4">
+              <ExerciseEquipmentControl
+                exercise={selectedExercise}
+                defaultBarWeight={
+                  settings?.defaultBarWeight ??
+                  defaultPlatesFor(weightUnit === 'kg' ? 'kg' : 'lbs').bar
+                }
+                weightUnit={weightUnit}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-3 pt-2">
             <div className="bg-[#09090b] rounded-2xl p-3 border border-zinc-800">
