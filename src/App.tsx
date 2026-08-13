@@ -73,27 +73,30 @@ export function App() {
     return () => window.removeEventListener('focus', onFocus);
   }, []);
 
+  // Base app-root anchor. Mount-only, and deliberately so: this used to re-run
+  // on every tab change and re-anchor whenever the current entry had no `tab`
+  // key. WorkoutLogView's sub-view entries carry `subViewType` instead, so
+  // returning from History to an exercise overwrote that entry with appRoot —
+  // the next Back then hit the exit modal instead of the workout log.
+  useEffect(() => {
+    if (!window.history.state) {
+      window.history.replaceState({ appRoot: true }, '');
+      window.history.pushState({ tab: 'workout' }, '');
+    }
+  }, []);
+
   // Global Android Back Navigation & Tab Fallback Router
   useEffect(() => {
-    // Set base app root anchor
-    if (!window.history.state || !window.history.state.tab) {
-      window.history.replaceState({ appRoot: true }, '');
-      window.history.pushState({ tab: activeTab }, '');
-    }
-
     const handlePopState = (e: PopStateEvent) => {
-      // If inside sub-views (In-Exercise or 2-Step Exercise Selector), let sub-views handle it
-      if (e.state && (e.state.inExercise || e.state.addExercise)) {
-        return;
-      }
-
-      // If popstate returned to appRoot base anchor, show Exit Warning Modal
+      // Returning to the base anchor means there is nowhere left to go back to.
       if (!e.state || e.state.appRoot) {
         setShowExitModal(true);
         return;
       }
 
-      // If on non-log tabs (library, history, settings), fallback to 'workout' (Log) tab
+      // Sub-view entries (in-exercise, exercise selector) belong to the workout
+      // log, so land on that tab and let WorkoutLogView restore the sub-view
+      // from the same history entry. On non-log tabs, fall back to the log.
       if (activeTab !== 'workout') {
         setActiveTab('workout');
       }
