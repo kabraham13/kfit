@@ -37,31 +37,34 @@ export const PlateLoadBar: React.FC<PlateLoadBarProps> = ({
 
   return (
     <div className="mt-1.5 pl-0.5">
-      <div className="flex items-end gap-[3px]">
+      <div className="flex items-end gap-[5px]">
         {/* The bar itself */}
-        <div className="flex flex-col items-center gap-0.5">
+        <div className="flex flex-col items-center gap-1">
           <div className="flex items-center">
-            <span className="text-[8px] font-black tracking-wider text-slate-500 bg-slate-800/80 border border-surfaceBorder rounded px-1 py-[1px]">
+            <span className="text-[8px] font-black tracking-wider text-slate-500 bg-slate-800/80 border border-surfaceBorder rounded px-1.5 py-[2px]">
               BAR
             </span>
-            <span className="w-2 h-[3px] bg-slate-600 rounded-r" />
+            <span className="w-2.5 h-[3px] bg-slate-600" />
           </div>
           {/* Keeps the bar chip on the same baseline as the labelled plates. */}
-          <span className="text-[9px] leading-none invisible">0</span>
+          <span className="text-[10px] leading-none invisible">0</span>
         </div>
 
         {load.perSide.length === 0 ? (
-          <span className="text-[10px] font-semibold text-slate-500 pb-3 pl-1">
+          <span className="text-[10px] font-semibold text-slate-500 pb-4 pl-1">
             empty bar
           </span>
         ) : (
           load.perSide.map((plate, i) => (
-            <div key={`${plate}-${i}`} className="flex flex-col items-center gap-0.5">
+            <div
+              key={`${plate}-${i}`}
+              className="flex flex-col items-center gap-1 min-w-[20px]"
+            >
               <div
-                className="w-[7px] rounded-[2px] bg-gradient-to-b from-brand-400 to-brand-600 border border-brand-300/30"
+                className="w-[9px] rounded-[2px] bg-gradient-to-b from-brand-400 to-brand-600 border border-brand-300/30"
                 style={{ height: `${plateHeight(plate)}px` }}
               />
-              <span className="text-[9px] leading-none font-mono font-bold text-slate-400">
+              <span className="text-[10px] leading-none font-mono font-bold text-slate-400">
                 {formatPlate(plate)}
               </span>
             </div>
@@ -69,7 +72,7 @@ export const PlateLoadBar: React.FC<PlateLoadBarProps> = ({
         )}
 
         {load.perSide.length > 0 && (
-          <span className="text-[9px] font-semibold text-slate-500 pl-1 pb-3">/side</span>
+          <span className="text-[9px] font-semibold text-slate-500 pl-1 pb-4">/side</span>
         )}
       </div>
 

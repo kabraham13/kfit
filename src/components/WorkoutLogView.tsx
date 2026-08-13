@@ -506,12 +506,13 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                   onDelete={() => set.id && deleteSet(set.id)}
                 >
                 <div
-                  className={`grid grid-cols-12 items-center p-3 rounded-2xl border transition ${
+                  className={`p-3 rounded-2xl border transition ${
                     set.isCompleted
                       ? 'bg-emerald-950/25 border-emerald-500/40 text-emerald-100'
                       : 'bg-card border-surfaceBorder text-white'
                   }`}
                 >
+                  <div className="grid grid-cols-12 items-center">
                   <div className="col-span-2 flex items-center gap-1 font-extrabold text-base text-slate-400">
                     <span>#{index + 1}</span>
                   </div>
@@ -530,15 +531,6 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                       }
                       className="w-full bg-[#090a0f] border border-surfaceBorder focus:border-brand-500 text-white font-mono font-black text-center py-2.5 rounded-xl text-base outline-none transition"
                     />
-
-                    {showPlates && set.weight > 0 && (
-                      <PlateLoadBar
-                        weight={set.weight}
-                        barWeight={barWeight}
-                        availablePlates={availablePlates}
-                        weightUnit={weightUnit}
-                      />
-                    )}
                   </div>
 
                   <div className="col-span-4 pr-3">
@@ -571,6 +563,24 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                       <Check className="w-5 h-5 stroke-[3]" />
                     </button>
                   </div>
+                  </div>
+
+                  {/* Own row rather than inside the weight cell: nested there it
+                      made that column taller than the others, and items-center
+                      then pushed the weight box out of line with reps. */}
+                  {showPlates && set.weight > 0 && (
+                    <div className="grid grid-cols-12 mt-1.5">
+                      <div className="col-span-2" />
+                      <div className="col-span-10">
+                        <PlateLoadBar
+                          weight={set.weight}
+                          barWeight={barWeight}
+                          availablePlates={availablePlates}
+                          weightUnit={weightUnit}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 </SwipeToDelete>
               ))}
