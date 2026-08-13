@@ -38,15 +38,27 @@ self.addEventListener('message', (event) => {
     restTimerTimeoutId = setTimeout(async () => {
       restTimerTimeoutId = null;
       try {
+        // Close the silent live countdown first. Posting the alert under that
+        // same tag made it an update to a silent notification, so it arrived
+        // mute; a distinct tag plus an explicit silent:false makes it ring.
+        const ongoing = await self.registration.getNotifications({ tag: 'kfit-rest-timer' });
+        ongoing.forEach((n) => n.close());
+
         await self.registration.showNotification('Rest Timer Complete! 🔔', {
           body: 'Time for your next set!',
           icon: '/kfit/pwa-192.png',
           badge: '/kfit/badge-96.png',
-          tag: 'kfit-rest-timer',
+          tag: 'kfit-rest-timer-done',
           renotify: true,
           requireInteraction: true,
+          silent: false,
           vibrate: [400, 200, 400, 200, 400, 200, 600],
         });
+
+        // A worker cannot play audio. If a page is still alive, hand it the
+        // chime so the sound and the notification land together.
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clients.forEach((c) => c.postMessage({ type: 'REST_TIMER_COMPLETE' }));
       } catch (err) {
         console.warn('SW timer notification error:', err);
       }

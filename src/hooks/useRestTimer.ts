@@ -8,8 +8,6 @@ import {
   scheduleServiceWorkerTimer,
   showOngoingTimerNotification,
   showTimerNotification,
-  startBackgroundKeepAlive,
-  stopBackgroundKeepAlive,
   triggerTimerVibration,
 } from '../utils/timer';
 
@@ -73,7 +71,6 @@ export function useRestTimer(defaultTimerSec: number) {
     void playRestTimerChime();
     triggerTimerVibration();
     void showTimerNotification('Rest Timer Complete! 🔔', 'Time for your next set!');
-    stopBackgroundKeepAlive();
   }, []);
 
   /** Recompute the display from the deadline; fire the alert if we passed it. */
@@ -180,7 +177,17 @@ export function useRestTimer(defaultTimerSec: number) {
     };
   }, [sync]);
 
-  useEffect(() => stopBackgroundKeepAlive, []);
+  // The service worker owns the deadline once the page is throttled, so let it
+  // wake us at 0:00 rather than waiting for the next tick that may never come.
+  // `sync` handles the rest — it recomputes from the deadline and is idempotent.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'REST_TIMER_COMPLETE') sync();
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [sync]);
 
   const start = useCallback(
     (sec?: number) => {
@@ -200,7 +207,6 @@ export function useRestTimer(defaultTimerSec: number) {
       setTotalSeconds(duration);
       setSecondsLeft(duration);
       setIsActive(true);
-      startBackgroundKeepAlive();
       void scheduleServiceWorkerTimer(endsAt);
       persist(null);
     },
@@ -216,7 +222,6 @@ export function useRestTimer(defaultTimerSec: number) {
       endsAtRef.current = null;
       setSecondsLeft(remaining);
       setIsActive(false);
-      stopBackgroundKeepAlive();
       void cancelServiceWorkerTimer();
       persist(remaining);
       lastNotifiedSecondRef.current = null;
@@ -230,7 +235,6 @@ export function useRestTimer(defaultTimerSec: number) {
       endsAtRef.current = endsAt;
       setIsActive(true);
       primeAudio();
-      startBackgroundKeepAlive();
       void scheduleServiceWorkerTimer(endsAt);
       persist(null);
     }
@@ -243,7 +247,6 @@ export function useRestTimer(defaultTimerSec: number) {
     setSecondsLeft(totalRef.current);
     setIsActive(true);
     primeAudio();
-    startBackgroundKeepAlive();
     void scheduleServiceWorkerTimer(endsAt);
     persist(null);
   }, [persist]);
@@ -275,7 +278,6 @@ export function useRestTimer(defaultTimerSec: number) {
     lastNotifiedSecondRef.current = null;
     setIsActive(false);
     setSecondsLeft(null);
-    stopBackgroundKeepAlive();
     void cancelServiceWorkerTimer();
     void clearTimerNotification();
     writePersisted(null);

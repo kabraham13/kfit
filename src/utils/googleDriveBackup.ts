@@ -357,7 +357,12 @@ async function requestToken(interactive: boolean, clientId?: string): Promise<st
     try {
       client.requestAccessToken({
         // Empty prompt = no UI when the grant is still valid.
-        prompt: interactive ? 'consent' : '',
+        //
+        // Re-linking an account that Google has already granted must NOT force
+        // 'consent': that re-runs the whole account-picker + consent screen
+        // every time, which is what made sign-in feel like a daily chore. Only
+        // a genuinely first-time link needs the consent screen.
+        prompt: interactive && localStorage.getItem(STORAGE_KEY_LINKED) !== 'true' ? 'consent' : '',
       });
     } catch (err: any) {
       window.clearTimeout(timeoutId);
@@ -685,8 +690,15 @@ async function getOrCreateBackupFolder(): Promise<string | null> {
 }
 
 /**
- * Keeps the token warm while the app is open, so the link does not quietly
- * lapse between workouts. Safe to call on app start and on tab focus.
+ * Renews the access token, but only when a backup is actually close to due.
+ *
+ * This used to renew on every app start and every window focus the moment the
+ * hourly token lapsed. With backups running daily that meant ~20 pointless
+ * token requests a day, and each one is a chance for GIS to decide it needs the
+ * user — which is why sign-in kept reappearing, sometimes more than once a day.
+ * Nothing needs a token until a backup runs, so don't ask for one until then.
+ *
+ * Safe to call on app start and on tab focus.
  */
 export async function ensureDriveSessionFresh() {
   const status = getStoredGDriveStatus();
@@ -695,6 +707,13 @@ export async function ensureDriveSessionFresh() {
   // A previous transient failure asked us to wait before trying again. Unlike
   // the old behaviour this expires on its own — it never permanently gives up.
   if (renewBackoffActive()) return;
+  if (!status.autoBackupEnabled) return;
+
+  // Within an hour of the next scheduled backup is close enough: a token lives
+  // an hour, so renewing now means the backup will not stall on auth.
+  const lastBackupMs = Number(localStorage.getItem(STORAGE_KEY_LAST_BACKUP_MS) || '0');
+  const msUntilDue = lastBackupMs + TWENTY_FOUR_HOURS_MS - Date.now();
+  if (msUntilDue > 60 * 60 * 1000) return;
 
   try {
     await getValidAccessToken();

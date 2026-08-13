@@ -4,10 +4,28 @@
 let audioCtx: AudioContext | null = null;
 let chimeAudioEl: HTMLAudioElement | null = null;
 
+/**
+ * Mix with whatever else is playing instead of taking audio focus.
+ *
+ * Without this Android treats the app as a media player: starting a rest timer
+ * ducked the user's music for the whole set, and the completion chime paused it
+ * outright. "ambient" tells the platform this is incidental audio — no ducking,
+ * no pause, no media-session takeover.
+ */
+function configureAudioSession() {
+  try {
+    const session = (navigator as any).audioSession;
+    if (session && session.type !== 'ambient') session.type = 'ambient';
+  } catch {
+    /* Audio Session API unsupported — the WebAudio path below still mixes */
+  }
+}
+
 function getAudioContext(): AudioContext | null {
   try {
     const Ctor = window.AudioContext || (window as any).webkitAudioContext;
     if (!Ctor) return null;
+    configureAudioSession();
     if (!audioCtx) audioCtx = new Ctor();
     if (audioCtx.state === 'suspended') void audioCtx.resume();
     return audioCtx;
@@ -17,51 +35,50 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
-/** Call from a user gesture (e.g. tapping "start timer") to unlock audio on mobile. */
+/**
+ * Call from a user gesture (e.g. tapping "start timer") to unlock audio on mobile.
+ *
+ * Deliberately WebAudio-only. Priming the HTML5 element with a silent play/pause
+ * cycle grabbed Android's audio focus at the moment the timer started, which is
+ * exactly what made the user's music dim for the whole rest period.
+ */
 export function primeAudio() {
   getAudioContext();
-  try {
-    if (!chimeAudioEl) {
-      chimeAudioEl = new Audio('/kfit/chime.wav');
-    }
-    // Silent play/pause cycle during user gesture unlocks HTML5 audio for screen-off playback
-    chimeAudioEl.volume = 0.01;
-    void chimeAudioEl
-      .play()
-      .then(() => {
-        if (chimeAudioEl) {
-          chimeAudioEl.pause();
-          chimeAudioEl.currentTime = 0;
-          chimeAudioEl.volume = 1.0;
-        }
-      })
-      .catch(() => {});
-  } catch (err) {
-    console.warn('Could not prime HTML5 audio:', err);
-  }
 }
 
 export async function playRestTimerChime() {
-  // 1. Primary: HTML5 Audio file playback (unlocked by user gesture, works when screen is off)
+  // 1. Primary: WebAudio synthesiser. It mixes with other apps' audio rather
+  // than requesting exclusive focus, so music keeps playing underneath.
+  if (await playSynthesisedChime()) return;
+
+  // 2. Fallback only: an HTML5 element does interrupt other audio on Android,
+  // but a chime that pauses Spotify still beats no chime at all. Reached when
+  // the AudioContext could not be resumed (typically a long screen-off period).
   try {
+    configureAudioSession();
     if (!chimeAudioEl) {
       chimeAudioEl = new Audio('/kfit/chime.wav');
     }
     chimeAudioEl.volume = 1.0;
     chimeAudioEl.currentTime = 0;
     await chimeAudioEl.play();
-    return;
   } catch (err) {
-    console.warn('HTML5 chime playback failed, falling back to WebAudio:', err);
+    console.warn('HTML5 chime playback failed:', err);
   }
+}
 
-  // 2. Fallback: WebAudio synthesizer
+/** Returns false if WebAudio could not produce sound, so the caller can fall back. */
+async function playSynthesisedChime(): Promise<boolean> {
   const ctx = getAudioContext();
-  if (!ctx) return;
+  if (!ctx) return false;
   try {
     if (ctx.state === 'suspended') {
       await ctx.resume();
     }
+    // A suspended context accepts scheduling calls silently and plays nothing,
+    // so check rather than assume the resume worked.
+    if (ctx.state !== 'running') return false;
+
     const start = ctx.currentTime;
 
     const bursts = [
@@ -91,73 +108,22 @@ export async function playRestTimerChime() {
         osc.stop(noteTime + 0.6);
       });
     });
+    return true;
   } catch (err) {
     console.warn('Audio chime playback error:', err);
+    return false;
   }
 }
 
-// Dual Keep-Alive: WebAudio + silent HTML5 Audio loop.
-// Android Chrome suspends WebAudio when screen turns off unless an HTML5 audio element
-// is actively playing. A 1-second silent WAV loop prevents Android OS deep sleep.
-const SILENT_WAV_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-
-let keepAliveNodes: { osc: OscillatorNode; gain: GainNode } | null = null;
-let silentAudioEl: HTMLAudioElement | null = null;
-
-export function startBackgroundKeepAlive() {
-  // 1. WebAudio oscillator keep-alive
-  if (!keepAliveNodes) {
-    const ctx = getAudioContext();
-    if (ctx) {
-      try {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(20, ctx.currentTime);
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        keepAliveNodes = { osc, gain };
-      } catch (err) {
-        console.warn('Keep-alive WebAudio error:', err);
-      }
-    }
-  }
-
-  // 2. HTML5 Audio keep-alive (prevents Android OS screen-off deep sleep)
-  try {
-    if (!silentAudioEl) {
-      silentAudioEl = new Audio(SILENT_WAV_URI);
-      silentAudioEl.loop = true;
-    }
-    void silentAudioEl.play().catch(() => {});
-  } catch (err) {
-    console.warn('Keep-alive HTML5 audio error:', err);
-  }
-}
-
-export function stopBackgroundKeepAlive() {
-  if (keepAliveNodes) {
-    try {
-      keepAliveNodes.osc.stop();
-      keepAliveNodes.osc.disconnect();
-      keepAliveNodes.gain.disconnect();
-    } catch (err) {
-      console.warn('Keep-alive WebAudio stop error:', err);
-    }
-    keepAliveNodes = null;
-  }
-
-  if (silentAudioEl) {
-    try {
-      silentAudioEl.pause();
-      silentAudioEl.currentTime = 0;
-    } catch (err) {
-      console.warn('Keep-alive HTML5 audio stop error:', err);
-    }
-  }
-}
+// There is deliberately no background audio keep-alive here any more.
+//
+// It used to hold a silent looping HTML5 <audio> element plus a near-inaudible
+// oscillator for the whole rest period, purely to stop Android suspending
+// WebAudio with the screen off. The cost was that the app held audio focus the
+// entire time, so the user's music was ducked from the moment the timer started.
+// The service worker (sw-notifications.js) now owns the completion alert, which
+// fires whether or not this page is awake, so the keep-alive bought nothing that
+// was worth silencing the user's music for.
 
 export function triggerTimerVibration() {
   if ('vibrate' in navigator) {
@@ -185,7 +151,13 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
-const TIMER_NOTIFICATION_TAG = 'kfit-rest-timer';
+// The live countdown and the completion alert must not share a tag. Android
+// treats a same-tag post as an *update* to an existing notification, and an
+// update to a notification that was created silent stays silent — which is why
+// the "Rest Timer Complete" alert made no sound. Separate tags mean the
+// completion alert is a genuinely new notification and gets the full treatment.
+const ONGOING_NOTIFICATION_TAG = 'kfit-rest-timer';
+const DONE_NOTIFICATION_TAG = 'kfit-rest-timer-done';
 
 function formatClock(secs: number) {
   const m = Math.floor(Math.max(0, secs) / 60);
@@ -209,7 +181,7 @@ export async function showOngoingTimerNotification(secondsLeft: number, isPaused
     body: isPaused ? 'Rest timer paused' : 'Resting — tap to return to your workout',
     icon: '/kfit/pwa-192.png',
     badge: '/kfit/badge-96.png',
-    tag: TIMER_NOTIFICATION_TAG,
+    tag: ONGOING_NOTIFICATION_TAG,
     renotify: false,
     requireInteraction: true,
     silent: true,
@@ -223,12 +195,25 @@ export async function showOngoingTimerNotification(secondsLeft: number, isPaused
   }
 }
 
+async function clearOngoingNotification() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.getNotifications({ tag: ONGOING_NOTIFICATION_TAG });
+    existing.forEach((n) => n.close());
+  } catch (err) {
+    console.warn('Could not clear ongoing timer notification:', err);
+  }
+}
+
 export async function clearTimerNotification() {
   if (!('serviceWorker' in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.ready;
-    const existing = await reg.getNotifications({ tag: TIMER_NOTIFICATION_TAG });
-    existing.forEach((n) => n.close());
+    for (const tag of [ONGOING_NOTIFICATION_TAG, DONE_NOTIFICATION_TAG]) {
+      const existing = await reg.getNotifications({ tag });
+      existing.forEach((n) => n.close());
+    }
   } catch (err) {
     console.warn('Could not clear timer notification:', err);
   }
@@ -241,11 +226,18 @@ export async function showTimerNotification(title: string, body: string) {
     body,
     icon: '/kfit/pwa-192.png',
     badge: '/kfit/badge-96.png',
-    tag: TIMER_NOTIFICATION_TAG,
+    tag: DONE_NOTIFICATION_TAG,
     renotify: true,
     requireInteraction: true,
+    // Explicit: the countdown notification sets silent, and an unset value here
+    // was being inherited as "no sound" on some Android builds.
+    silent: false,
     vibrate: [300, 150, 300, 150, 500],
   } as NotificationOptions;
+
+  // Retire the silent countdown first, so the alert arrives as a new
+  // notification rather than as a quiet update to the running one.
+  await clearOngoingNotification();
 
   // Installed PWAs on Android only allow notifications through the service
   // worker registration — `new Notification()` throws there.
