@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, UserSettings } from '../db';
-import { parseAndImportFitNotesCSV, exportFitNotesCSV, CSVImportResult } from '../utils/csvHandler';
+import { parseAndImportWorkoutCSV, exportWorkoutCSV, CSVImportResult } from '../utils/csvHandler';
 import { todayISO } from '../utils/date';
 import { defaultPlatesFor, formatPlate } from '../utils/plates';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -185,7 +185,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     reader.onload = async (e) => {
       const csvText = e.target?.result as string;
       if (csvText) {
-        const result = await parseAndImportFitNotesCSV(csvText);
+        const result = await parseAndImportWorkoutCSV(csvText);
         setImportResult(result);
       }
       setIsImporting(false);
@@ -194,12 +194,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleExport = async () => {
-    const csvContent = await exportFitNotesCSV();
+    const csvContent = await exportWorkoutCSV();
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `FitNotes_Export_${todayISO()}.csv`);
+    link.setAttribute('download', `kfit_export_${todayISO()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -396,7 +396,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
       </div>
 
-      {/* Standard FitNotes Import / Export Section */}
+      {/* CSV Import / Export Section */}
       <div className="bg-surface border border-surfaceBorder rounded-3xl p-5 shadow-xl">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-2xl bg-brand-500/20 text-brand-400 flex items-center justify-center border border-brand-500/30">
@@ -404,7 +404,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">Manual CSV Import & Export</h3>
-            <p className="text-xs text-slate-400">Import or download FitNotes-compatible CSV files</p>
+            <p className="text-xs text-slate-400">Import or download your workout history as CSV</p>
           </div>
         </div>
 
@@ -423,7 +423,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Upload className="w-6 h-6 text-brand-400 group-hover:scale-110 transition mb-2" />
             )}
             <span className="font-bold text-white text-sm">
-              {isImporting ? 'Importing FitNotes CSV...' : 'Import FitNotes CSV Backup'}
+              {isImporting ? 'Importing CSV...' : 'Import CSV Backup'}
             </span>
             <span className="text-xs text-slate-400 mt-0.5">Select .csv file to restore</span>
           </label>
@@ -452,7 +452,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-4 flex items-start gap-3">
                 <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-emerald-200 text-sm">FitNotes CSV Import Successful!</h4>
+                  <h4 className="font-bold text-emerald-200 text-sm">CSV Import Successful!</h4>
                   <p className="text-xs text-emerald-300/80 mt-1">
                     Added <span className="font-bold text-white">{importResult.setsImported} sets</span> across{' '}
                     <span className="font-bold text-white">{importResult.workoutsImported} workout days</span>, and created{' '}

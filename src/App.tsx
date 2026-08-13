@@ -199,18 +199,22 @@ export function App() {
               <LogOut className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">Exit kfit?</h3>
+              <h3 className="text-lg font-bold text-white">Leave the app?</h3>
               <p className="text-slate-400 text-xs mt-1">
-                Are you sure you want to leave the app?
+                Your log is saved automatically.
               </p>
             </div>
+            {/* Stay is the emphasised action. This modal is almost always
+                reached by an accidental Back, so the recommended answer is to
+                stay — giving the destructive option the bright button invited
+                the mistake it exists to prevent. */}
             <div className="flex items-center gap-3 pt-1">
               <button
                 onClick={() => {
                   setShowExitModal(false);
                   window.history.back();
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition"
+                className="flex-1 py-2.5 rounded-xl bg-surface border border-surfaceBorder text-slate-400 hover:text-rose-300 hover:border-rose-500/40 font-bold text-xs transition"
               >
                 Exit
               </button>
@@ -219,7 +223,8 @@ export function App() {
                   setShowExitModal(false);
                   window.history.pushState({ tab: 'workout' }, '');
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-surface border border-surfaceBorder text-slate-300 font-bold text-xs hover:text-white"
+                autoFocus
+                className="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md shadow-brand-600/30 transition"
               >
                 Stay
               </button>

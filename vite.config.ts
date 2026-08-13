@@ -23,7 +23,7 @@ export default defineConfig({
         id: '/kfit/',
         start_url: '/kfit/',
         scope: '/kfit/',
-        description: 'Minimal, fast, offline-first FitNotes workout tracker clone',
+        description: 'Minimal, fast, offline-first workout tracker',
         theme_color: '#090a0f',
         background_color: '#090a0f',
         display: 'standalone',

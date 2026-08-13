@@ -1,15 +1,15 @@
 import Dexie, { Table } from 'dexie';
 import { DEFAULT_BAR_LBS, DEFAULT_PLATES_LBS } from '../utils/plates';
 /**
- * Populates a brand-new database with the starter FitNotes history.
+ * Populates a brand-new database with the starter exercise library and history.
  *
  * Never clears existing tables. An earlier version opened with .clear() on all
  * four tables, which combined with a `setCount < 100` seed condition meant any
  * user whose log dipped below 100 sets had their entire history destroyed on the
  * next app load. Seeding is now additive and gated on a truly empty database.
  */
-export async function seedFitnotesDatabase() {
-  const { SEED_CATEGORIES, SEED_EXERCISES, SEED_LOGS, SEED_SETS } = await import('./fitnotesSeed');
+export async function seedStarterDatabase() {
+  const { SEED_CATEGORIES, SEED_EXERCISES, SEED_LOGS, SEED_SETS } = await import('./starterSeed');
   await db.transaction('rw', [db.categories, db.exercises, db.workoutLogs, db.workoutSets, db.userSettings], async () => {
     // bulkPut, not bulkAdd: idempotent if this ever runs twice.
     await db.categories.bulkPut(SEED_CATEGORIES);
@@ -60,7 +60,7 @@ export type Equipment =
  * or "belt from set 3". Deliberately per exercise-day rather than per workout:
  * feedback you want later is almost always about a specific lift.
  *
- * Round-trips through the FitNotes CSV `Comment` column.
+ * Round-trips through the CSV `Comment` column.
  */
 export interface ExerciseNote {
   date: string; // YYYY-MM-DD
@@ -186,7 +186,7 @@ export async function initDatabaseDefaults() {
 
     // Only ever seed a genuinely empty database.
     if (catCount === 0 && setCount === 0) {
-      await seedFitnotesDatabase();
+      await seedStarterDatabase();
     }
   }
 

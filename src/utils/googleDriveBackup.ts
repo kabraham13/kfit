@@ -1,4 +1,4 @@
-import { exportFitNotesCSV } from './csvHandler';
+import { exportWorkoutCSV } from './csvHandler';
 import { todayISO } from './date';
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
@@ -520,13 +520,13 @@ async function driveFetch(url: string, init: RequestInit = {}, isRetry = false):
 }
 
 /**
- * Uploads current FitNotes CSV backup to the user's Google Drive inside the
+ * Uploads the current CSV backup to the user's Google Drive inside the
  * 'kfit_backups' folder, then purges all but the 7 most recent backups.
  */
 export async function uploadBackupToGoogleDrive(): Promise<{ filename: string; fileId: string }> {
-  const csvData = await exportFitNotesCSV();
+  const csvData = await exportWorkoutCSV();
   const dateStr = todayISO();
-  const filename = `FitNotes_Export_${dateStr}.csv`;
+  const filename = `kfit_export_${dateStr}.csv`;
 
   const folderId = await getOrCreateBackupFolder();
 

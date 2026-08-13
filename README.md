@@ -1,16 +1,16 @@
 # kfit
 
-A minimal, fast, offline-first workout logger for the gym — a FitNotes-style
-tracker that runs as an installable PWA and keeps all your data on your device.
+A minimal, fast, offline-first workout logger for the gym. Runs as an
+installable PWA and keeps all your data on your device.
 
 **Live:** https://kabraham13.github.io/kfit/
 
 ## Why
 
-FitNotes is excellent but Android-only, and most web alternatives want an account
-and a subscription. kfit keeps the parts that matter — fast set entry, an
-exercise library, PR tracking, honest CSV import/export — with no server, no
-login, and no data leaving your phone unless you explicitly link Google Drive.
+Most workout trackers are either Android-only or want an account and a
+subscription. kfit keeps the parts that matter — fast set entry, an exercise
+library, PR tracking, honest CSV import/export — with no server, no login, and
+no data leaving your phone unless you explicitly link Google Drive.
 
 ## Features
 
@@ -25,13 +25,13 @@ login, and no data leaving your phone unless you explicitly link Google Drive.
   in another app with the screen off.
 - **PR detection.** Flags max-weight, estimated-1RM, and rep PRs as you log, with
   a bit of confetti. 1RM uses the Epley formula (`weight × (1 + reps / 30)`).
-- **Exercise library.** Seeded with the standard FitNotes exercise and category
-  set; add your own custom exercises.
+- **Exercise library.** Seeded with a standard exercise and category set; add
+  your own custom exercises.
 - **History and calendar.** Per-exercise history charts and a month calendar view
   of training days.
-- **FitNotes CSV import/export.** Reads and writes the FitNotes export format
+- **CSV import/export.** Reads and writes a plain columnar format
   (`Date, Exercise, Category, Weight, Reps, Distance, Time, Comment`), so you can
-  migrate in from FitNotes and get your data back out at any time.
+  migrate your history in and get your data back out at any time.
 - **Google Drive backup.** Optional. Syncs a CSV backup to a `kfit_backups`
   folder in your own Drive once every 24 hours, keeping a rolling 7 most recent
   backups. Uses the `drive.file` scope, so kfit can only ever see files it

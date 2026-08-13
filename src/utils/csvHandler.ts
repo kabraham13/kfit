@@ -20,7 +20,7 @@ export interface CSVImportResult {
 
 const LBS_PER_KG = 2.20462;
 
-/** FitNotes writes YYYY-MM-DD. Anything else would never match our indexes. */
+/** The export format writes YYYY-MM-DD. Anything else would never match our indexes. */
 function normaliseDate(raw: string): string | null {
   const s = String(raw).trim().split(' ')[0];
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -43,7 +43,7 @@ function detectUnit(fields: string[]): 'lbs' | 'kg' | null {
   return null;
 }
 
-export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSVImportResult> {
+export async function parseAndImportWorkoutCSV(csvContent: string): Promise<CSVImportResult> {
   return new Promise((resolve) => {
     Papa.parse(csvContent, {
       header: true,
@@ -52,7 +52,7 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
         const errors: string[] = [];
         const warnings: string[] = [];
         try {
-          // The FitNotes export names its weight column with the unit. Without
+          // The weight column names its unit in the header. Without
           // honouring it a kg file imports as lbs and every number is wrong by
           // 2.2x — silently.
           const headerFields = (results.meta?.fields as string[]) || [];
@@ -85,7 +85,7 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
           const setOrderTracker = new Map<string, number>();
 
           const setsToInsert: WorkoutSet[] = [];
-          // FitNotes writes a comment per set; kfit keeps one note per exercise
+          // The CSV carries a comment per set; kfit keeps one note per exercise
           // per day, so the first non-empty comment in a group wins.
           const notesToInsert = new Map<string, ExerciseNote>();
           const nowBase = Date.now();
@@ -94,7 +94,7 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
             const row: any = results.data[i];
             if (!row || typeof row !== 'object') continue;
 
-            // FitNotes CSV header column matching (handling variations)
+            // Header column matching (handling case variations)
             const rawDate = row['Date'] || row['date'] || row['DATE'] || '';
             const exerciseName = String(row['Exercise'] || row['exercise'] || row['EXERCISE'] || '').trim();
             const categoryName = String(row['Category'] || row['category'] || row['CATEGORY'] || 'Custom').trim();
@@ -272,7 +272,7 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
             warnings
           });
         } catch (err: any) {
-          console.error('FitNotes CSV import failed:', err);
+          console.error('CSV import failed:', err);
           resolve({
             workoutsImported: 0,
             setsImported: 0,
@@ -303,7 +303,7 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
   });
 }
 
-export async function exportFitNotesCSV(): Promise<string> {
+export async function exportWorkoutCSV(): Promise<string> {
   const settings = await db.userSettings.get('default');
   const unit = settings?.weightUnit || 'lbs';
 
@@ -338,7 +338,7 @@ export async function exportFitNotesCSV(): Promise<string> {
       Date: s.date,
       Exercise: s.exerciseName,
       Category: ex?.categoryName || 'General',
-      // Unit-tagged, matching the FitNotes export format. A bare "Weight"
+      // Unit-tagged, as the import expects. A bare "Weight"
       // column meant a kg backup silently re-imported as lbs.
       [`Weight (${unit})`]: s.weight || 0,
       Reps: s.reps || 0,

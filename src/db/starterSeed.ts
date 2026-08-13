@@ -1,4 +1,4 @@
-// Auto-generated seed data from FitNotes CSV Export
+// Auto-generated starter seed data.
 import { Category, Exercise, WorkoutLog, WorkoutSet } from './index';
 
 export const SEED_CATEGORIES: Category[] = [
