@@ -10,6 +10,7 @@ import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { useRestTimer } from './hooks/useRestTimer';
 import { ensureDriveSessionFresh } from './utils/googleDriveBackup';
 import { todayISO } from './utils/date';
+import { anchorHistory, pushAppState, resetToRootEntry } from './utils/navigation';
 import { LogOut } from 'lucide-react';
 
 export function App() {
@@ -83,10 +84,7 @@ export function App() {
   // returning from History to an exercise overwrote that entry with appRoot —
   // the next Back then hit the exit modal instead of the workout log.
   useEffect(() => {
-    if (!window.history.state) {
-      window.history.replaceState({ appRoot: true }, '');
-      window.history.pushState({ tab: 'workout' }, '');
-    }
+    if (!window.history.state) anchorHistory('workout');
   }, []);
 
   // Global Android Back Navigation & Tab Fallback Router
@@ -112,12 +110,32 @@ export function App() {
     };
   }, [activeTab]);
 
+  /**
+   * Opening the log unwinds the stack rather than pushing onto it, so Back from
+   * the log always means "leave" instead of retracing every tab and exercise
+   * visited to get here.
+   */
+  const handleGoToLog = () => {
+    resetToRootEntry();
+    setActiveTab('workout');
+    // The popstate from the unwind already restores the overview, but this also
+    // covers the case where we were on the root entry and nothing moved.
+    setGoHomeSignal((n) => n + 1);
+  };
+
   /** Back to the default view: today's log, no exercise open. */
   const handleGoHome = () => {
-    window.history.pushState({ tab: 'workout' }, '');
-    setActiveTab('workout');
+    handleGoToLog();
     setSelectedDate(todayISO());
-    setGoHomeSignal((n) => n + 1);
+  };
+
+  const handleSelectTab = (tab: 'workout' | 'library' | 'history' | 'settings') => {
+    if (tab === 'workout') {
+      handleGoToLog();
+      return;
+    }
+    pushAppState({ tab });
+    setActiveTab(tab);
   };
 
   const handleSelectExerciseHistory = (exerciseId: string) => {
@@ -125,7 +143,7 @@ export function App() {
     // Push, like every other tab switch does. Without this the history stack
     // still points at the exercise you came from, so Back pops straight past it
     // and there is no way to return to that page.
-    window.history.pushState({ tab: 'history' }, '');
+    pushAppState({ tab: 'history' });
     setActiveTab('history');
   };
 
@@ -137,10 +155,7 @@ export function App() {
       {/* Top Header with Brand Title, Date Picker, Settings Icon, and Active Rest Timer Bar */}
       <Header
         activeTab={activeTab}
-        setActiveTab={(tab) => {
-          window.history.pushState({ tab }, '');
-          setActiveTab(tab);
-        }}
+        setActiveTab={handleSelectTab}
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}
         timerSecondsLeft={timerSecondsLeft}
@@ -221,7 +236,7 @@ export function App() {
               <button
                 onClick={() => {
                   setShowExitModal(false);
-                  window.history.pushState({ tab: 'workout' }, '');
+                  pushAppState({ tab: 'workout' });
                 }}
                 autoFocus
                 className="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md shadow-brand-600/30 transition"
@@ -234,13 +249,7 @@ export function App() {
       )}
 
       {/* Fixed Bottom Navigation Bar */}
-      <BottomNav
-        activeTab={activeTab}
-        setActiveTab={(tab) => {
-          window.history.pushState({ tab }, '');
-          setActiveTab(tab);
-        }}
-      />
+      <BottomNav activeTab={activeTab} setActiveTab={handleSelectTab} />
     </div>
   );
 }

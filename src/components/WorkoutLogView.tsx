@@ -7,6 +7,7 @@ import { ExerciseSelectorView } from './ExerciseSelectorView';
 import { SwipeToDelete } from './SwipeToDelete';
 import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
 import { parseLocalDate, toLocalISODate } from '../utils/date';
+import { pushAppState, replaceAppState } from '../utils/navigation';
 import { PlateLoadBar } from './PlateLoadBar';
 import { equipmentOf, defaultPlatesFor } from '../utils/plates';
 import { ExerciseNoteField } from './ExerciseNoteField';
@@ -119,17 +120,17 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
 
   // Navigation Trigger Functions (Push state ONLY on user click)
   const openAddExerciseCategories = () => {
-    window.history.pushState({ subViewType: 'selector-categories' }, '');
+    pushAppState({ subViewType: 'selector-categories' });
     setSubView({ type: 'selector-categories' });
   };
 
   const selectCategory = (category: Category) => {
-    window.history.pushState({ subViewType: 'selector-exercises', category }, '');
+    pushAppState({ subViewType: 'selector-exercises', category });
     setSubView({ type: 'selector-exercises', category });
   };
 
   const openInExercise = (exerciseId: string) => {
-    window.history.pushState({ subViewType: 'in-exercise', exerciseId }, '');
+    pushAppState({ subViewType: 'in-exercise', exerciseId });
     setSubView({ type: 'in-exercise', exerciseId });
   };
 
@@ -232,7 +233,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     });
 
     // Replace current selector state with in-exercise view
-    window.history.replaceState({ subViewType: 'in-exercise', exerciseId: exercise.id }, '');
+    replaceAppState({ subViewType: 'in-exercise', exerciseId: exercise.id });
     setSubView({ type: 'in-exercise', exerciseId: exercise.id });
   };
 
