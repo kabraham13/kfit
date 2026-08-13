@@ -1,11 +1,17 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Single source of truth. The version used to be hardcoded here as well as in
+// package.json, so the number shown in Settings drifted out of date whenever
+// only one of the two was bumped.
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+
 export default defineConfig({
   base: '/kfit/',
   define: {
-    __APP_VERSION__: JSON.stringify('v1.1.0'),
+    __APP_VERSION__: JSON.stringify(`v${pkg.version}`),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString().replace('T', ' ').substring(0, 16) + ' UTC'),
   },
   build: {

@@ -717,7 +717,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* App Version & PWA Build Info */}
       <div className="bg-[#121215] border border-zinc-800 rounded-3xl p-4 text-center shadow-sm space-y-1">
         <div className="text-xs font-mono font-extrabold text-zinc-200">
-          kfit <span className="text-brand-400 font-black">{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'v1.1.0'}</span>
+          kfit <span className="text-brand-400 font-black">{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}</span>
         </div>
         <div className="text-[10px] font-mono text-zinc-400">
           Build: {typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'Latest'}
