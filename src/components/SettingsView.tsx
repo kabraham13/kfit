@@ -595,7 +595,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="font-bold text-white text-sm">Chime with screen off</div>
             <div className="text-xs text-slate-400">
               Keeps the chime reliable when your screen has been off the whole rest.
-              Holds audio focus, so other apps' music will dim while the timer runs.
+              Only active while your screen is off, and may dim other apps' music
+              during that time. Turn this on if your phone stays on vibrate — a
+              silent phone mutes the timer notification, but not this.
             </div>
           </div>
           <label className="relative inline-flex items-center cursor-pointer shrink-0">

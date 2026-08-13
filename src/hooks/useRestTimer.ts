@@ -10,6 +10,7 @@ import {
   scheduleServiceWorkerTimer,
   showOngoingTimerNotification,
   showTimerNotification,
+  primeBackgroundKeepAlive,
   startBackgroundKeepAlive,
   stopBackgroundKeepAlive,
   triggerTimerVibration,
@@ -181,11 +182,17 @@ export function useRestTimer(defaultTimerSec: number) {
           const rem = Math.max(0, Math.ceil((endsAtRef.current - Date.now()) / 1000));
           lastNotifiedSecondRef.current = rem;
           void showOngoingTimerNotification(rem);
+
+          // Only now is the keep-alive worth its cost. While the app is on
+          // screen the page is not frozen and the chime works without it, so
+          // holding audio focus then would dim the user's music for nothing.
+          if (prefsRef.current.keepAudioAlive) startBackgroundKeepAlive();
         }
         return;
       }
       // Back in the app — the overlay takes over, so retire the notification.
       lastNotifiedSecondRef.current = null;
+      stopBackgroundKeepAlive();
       void clearTimerNotification();
       onWake();
     };
@@ -232,7 +239,7 @@ export function useRestTimer(defaultTimerSec: number) {
       setTotalSeconds(duration);
       setSecondsLeft(duration);
       setIsActive(true);
-      if (prefsRef.current.keepAudioAlive) startBackgroundKeepAlive();
+      if (prefsRef.current.keepAudioAlive) primeBackgroundKeepAlive();
       void scheduleServiceWorkerTimer(endsAt, prefsRef.current);
       persist(null);
     },
@@ -262,7 +269,7 @@ export function useRestTimer(defaultTimerSec: number) {
       endsAtRef.current = endsAt;
       setIsActive(true);
       primeAudio();
-      if (prefsRef.current.keepAudioAlive) startBackgroundKeepAlive();
+      if (prefsRef.current.keepAudioAlive) primeBackgroundKeepAlive();
       void scheduleServiceWorkerTimer(endsAt, prefsRef.current);
       persist(null);
     }
@@ -275,7 +282,7 @@ export function useRestTimer(defaultTimerSec: number) {
     setSecondsLeft(totalRef.current);
     setIsActive(true);
     primeAudio();
-    if (prefsRef.current.keepAudioAlive) startBackgroundKeepAlive();
+    if (prefsRef.current.keepAudioAlive) primeBackgroundKeepAlive();
     void scheduleServiceWorkerTimer(endsAt, prefsRef.current);
     persist(null);
   }, [persist]);

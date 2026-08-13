@@ -128,7 +128,7 @@ const SILENT_WAV_URI =
 
 let silentAudioEl: HTMLAudioElement | null = null;
 
-export function startBackgroundKeepAlive() {
+function getKeepAliveElement(): HTMLAudioElement | null {
   try {
     configureAudioSession();
     if (!silentAudioEl) {
@@ -136,10 +136,36 @@ export function startBackgroundKeepAlive() {
       silentAudioEl.loop = true;
       silentAudioEl.volume = 0.0001;
     }
-    void silentAudioEl.play().catch(() => {});
+    return silentAudioEl;
   } catch (err) {
-    console.warn('Keep-alive audio error:', err);
+    console.warn('Keep-alive audio unavailable:', err);
+    return null;
   }
+}
+
+/**
+ * Unlock the keep-alive element during the user gesture that starts the timer.
+ *
+ * The keep-alive itself is not started until the screen goes off, and by then
+ * there is no gesture to authorise playback. Priming it here — a play/pause on a
+ * silent element — buys the permission up front so the later start succeeds.
+ */
+export function primeBackgroundKeepAlive() {
+  const el = getKeepAliveElement();
+  if (!el) return;
+  void el
+    .play()
+    .then(() => {
+      el.pause();
+      el.currentTime = 0;
+    })
+    .catch(() => {});
+}
+
+export function startBackgroundKeepAlive() {
+  const el = getKeepAliveElement();
+  if (!el) return;
+  void el.play().catch(() => {});
 }
 
 export function stopBackgroundKeepAlive() {
