@@ -488,12 +488,16 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
         {/* Full-Screen Real Estate Sets Table */}
         <div className="bg-surface border border-surfaceBorder rounded-2xl overflow-hidden shadow-xl p-4 mb-6">
           <div className="grid grid-cols-12 text-[11px] font-bold uppercase tracking-wider text-slate-400 px-2 py-2 mb-2 border-b border-surfaceBorder/80">
-            <div className={showPlates ? 'col-span-1' : 'col-span-2'}>SET</div>
-            <div className={showPlates ? 'col-span-3' : 'col-span-4'}>
-              {isCardio ? 'DISTANCE' : `WEIGHT (${weightUnit})`}
+            {/* Labels are abbreviated in the five-column layout: at phone widths
+                "WEIGHT (LBS)" wraps to two lines and collides with its neighbour. */}
+            <div className={`${showPlates ? 'col-span-1' : 'col-span-2'} pr-1`}>
+              {showPlates ? '#' : 'SET'}
             </div>
-            {showPlates && <div className="col-span-4">PLATES</div>}
-            <div className={showPlates ? 'col-span-2' : 'col-span-4'}>
+            <div className={`${showPlates ? 'col-span-3' : 'col-span-4'} pr-1`}>
+              {isCardio ? 'DISTANCE' : showPlates ? `WT (${weightUnit})` : `WEIGHT (${weightUnit})`}
+            </div>
+            {showPlates && <div className="col-span-4 pr-1">PLATES</div>}
+            <div className={`${showPlates ? 'col-span-2' : 'col-span-4'} pr-1`}>
               {isCardio ? 'TIME (MIN)' : 'REPS'}
             </div>
             <div className="col-span-2 text-right">STATUS</div>
@@ -526,7 +530,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                     <span>#{index + 1}</span>
                   </div>
 
-                  <div className={`${showPlates ? 'col-span-3' : 'col-span-4'} pr-3`}>
+                  <div className={`${showPlates ? 'col-span-3 pr-2' : 'col-span-4 pr-3'}`}>
                     <input
                       type="number"
                       step={isCardio ? '0.1' : '2.5'}
@@ -543,7 +547,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                   </div>
 
                   {showPlates && (
-                    <div className="col-span-4 pr-3">
+                    <div className="col-span-4 pr-2">
                       {set.weight > 0 && (
                         <PlateLoadBar
                           weight={set.weight}
@@ -555,7 +559,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                     </div>
                   )}
 
-                  <div className={`${showPlates ? 'col-span-2' : 'col-span-4'} pr-3`}>
+                  <div className={`${showPlates ? 'col-span-2 pr-2' : 'col-span-4 pr-3'}`}>
                     <input
                       type="number"
                       aria-label={`Set ${index + 1} ${isCardio ? 'time in minutes' : 'reps'}`}

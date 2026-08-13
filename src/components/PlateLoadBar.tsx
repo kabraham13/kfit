@@ -39,26 +39,35 @@ export const PlateLoadBar: React.FC<PlateLoadBarProps> = ({
     return Math.round(MIN_PLATE_HEIGHT_PX + ratio * (MAX_PLATE_HEIGHT_PX - MIN_PLATE_HEIGHT_PX));
   };
 
-  return (
-    <div className="flex items-center flex-wrap gap-x-1.5 gap-y-1">
-      <span className="flex items-center shrink-0">
-        <span className="text-[8px] font-black tracking-wider text-slate-500 bg-slate-800/80 border border-surfaceBorder rounded px-1.5 py-[2px]">
-          BAR
-        </span>
-        <span className="w-2 h-[3px] bg-slate-600" />
-      </span>
+  // Repeats are collapsed to "45×3". Three separate labelled blocks cost about
+  // 100px on a phone and say nothing the multiplier does not.
+  const grouped: Array<{ plate: number; count: number }> = [];
+  for (const plate of load.perSide) {
+    const last = grouped[grouped.length - 1];
+    if (last && last.plate === plate) last.count += 1;
+    else grouped.push({ plate, count: 1 });
+  }
 
-      {load.perSide.length === 0 ? (
+  return (
+    <div className="flex items-center flex-wrap gap-x-1 gap-y-1">
+      {/* The bar, as a bare sleeve. It was a "BAR" chip until that turned out to
+          cost ~40px of a ~130px column; now every plate carries its own number,
+          so the chip was labelling something already unambiguous. The bar's
+          weight is stated on the equipment line above the sets. */}
+      <span className="w-2.5 h-[3px] bg-slate-600 rounded-sm shrink-0" title="Bar" />
+
+      {grouped.length === 0 ? (
         <span className="text-[10px] font-semibold text-slate-500">empty</span>
       ) : (
-        load.perSide.map((plate, i) => (
-          <span key={`${plate}-${i}`} className="flex items-center gap-1 shrink-0">
+        grouped.map(({ plate, count }, i) => (
+          <span key={`${plate}-${i}`} className="flex items-center gap-[3px] shrink-0">
             <span
-              className="w-[8px] rounded-[2px] bg-gradient-to-b from-brand-400 to-brand-600 border border-brand-300/30"
+              className="w-[7px] rounded-[2px] bg-gradient-to-b from-brand-400 to-brand-600 border border-brand-300/30"
               style={{ height: `${plateHeight(plate)}px` }}
             />
-            <span className="text-[11px] leading-none font-mono font-bold text-slate-400">
+            <span className="text-[10px] leading-none font-mono font-bold text-slate-400">
               {formatPlate(plate)}
+              {count > 1 && <span className="text-slate-500">×{count}</span>}
             </span>
           </span>
         ))
