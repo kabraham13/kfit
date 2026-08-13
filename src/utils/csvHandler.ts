@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import { db, WorkoutSet, Exercise, Category, WorkoutLog } from '../db';
+import { db, WorkoutSet, Exercise, Category, WorkoutLog, ExerciseNote } from '../db';
 
 export interface CSVImportResult {
   workoutsImported: number;
@@ -8,6 +8,8 @@ export interface CSVImportResult {
   setsSkipped: number;
   exercisesCreated: number;
   categoriesCreated: number;
+  /** Exercise-day notes recovered from the CSV `Comment` column. */
+  notesImported: number;
   /** Unit the file was read as, after header detection. */
   detectedUnit: 'lbs' | 'kg';
   /** Fatal — the import did not complete. */
@@ -83,6 +85,9 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
           const setOrderTracker = new Map<string, number>();
 
           const setsToInsert: WorkoutSet[] = [];
+          // FitNotes writes a comment per set; kfit keeps one note per exercise
+          // per day, so the first non-empty comment in a group wins.
+          const notesToInsert = new Map<string, ExerciseNote>();
           const nowBase = Date.now();
 
           for (let i = 0; i < results.data.length; i++) {
@@ -159,6 +164,19 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
               }
             }
 
+            const comment = String(row['Comment'] || row['comment'] || '').trim();
+            if (comment) {
+              const noteKey = `${dateStr}|${ex.id}`;
+              if (!notesToInsert.has(noteKey)) {
+                notesToInsert.set(noteKey, {
+                  date: dateStr,
+                  exerciseId: ex.id,
+                  text: comment,
+                  updatedAt: nowBase
+                });
+              }
+            }
+
             // Fast O(1) set order tracking
             const setOrderKey = `${dateStr}_${ex.id}`;
             const currentOrder = (setOrderTracker.get(setOrderKey) || 0) + 1;
@@ -182,7 +200,9 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
           let setsSkipped = 0;
 
           // Execute bulk batch writes inside a single Dexie transaction for instant speed
-          await db.transaction('rw', [db.categories, db.exercises, db.workoutLogs, db.workoutSets], async () => {
+          let notesImported = 0;
+
+          await db.transaction('rw', [db.categories, db.exercises, db.workoutLogs, db.workoutSets, db.exerciseNotes], async () => {
             if (newCategoriesMap.size > 0) {
               await db.categories.bulkPut(Array.from(newCategoriesMap.values()));
             }
@@ -219,6 +239,25 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
 
               if (fresh.length > 0) await db.workoutSets.bulkAdd(fresh);
             }
+
+            if (notesToInsert.size > 0) {
+              // Never overwrite a note the user has already written here — an
+              // import is additive, and a re-imported backup must not clobber
+              // something edited since.
+              const candidates = Array.from(notesToInsert.values());
+              const existing = await db.exerciseNotes
+                .where('date')
+                .anyOf(Array.from(workoutDatesSet))
+                .toArray();
+              const existingKeys = new Set(existing.map((n) => `${n.date}|${n.exerciseId}`));
+
+              const freshNotes = candidates.filter(
+                (n) => !existingKeys.has(`${n.date}|${n.exerciseId}`)
+              );
+
+              if (freshNotes.length > 0) await db.exerciseNotes.bulkPut(freshNotes);
+              notesImported = freshNotes.length;
+            }
           });
 
           resolve({
@@ -227,6 +266,7 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
             setsSkipped,
             exercisesCreated: newExercisesMap.size,
             categoriesCreated: newCategoriesMap.size,
+            notesImported,
             detectedUnit,
             errors,
             warnings
@@ -239,6 +279,7 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
             setsSkipped: 0,
             exercisesCreated: 0,
             categoriesCreated: 0,
+            notesImported: 0,
             detectedUnit: 'lbs',
             errors: [err?.message || 'Error processing CSV file'],
             warnings: []
@@ -252,6 +293,7 @@ export async function parseAndImportFitNotesCSV(csvContent: string): Promise<CSV
           setsSkipped: 0,
           exercisesCreated: 0,
           categoriesCreated: 0,
+          notesImported: 0,
           detectedUnit: 'lbs',
           errors: [err?.message || 'CSV file parse error'],
           warnings: []
@@ -267,12 +309,20 @@ export async function exportFitNotesCSV(): Promise<string> {
 
   // Read both tables in one transaction. Previously a set logged between the
   // two reads exported with its category resolved to "General".
-  const [allSets, allExercises] = await db.transaction(
+  const [allSets, allExercises, allNotes] = await db.transaction(
     'r',
-    [db.workoutSets, db.exercises],
-    async () => Promise.all([db.workoutSets.orderBy('date').toArray(), db.exercises.toArray()])
+    [db.workoutSets, db.exercises, db.exerciseNotes],
+    async () =>
+      Promise.all([
+        db.workoutSets.orderBy('date').toArray(),
+        db.exercises.toArray(),
+        db.exerciseNotes.toArray()
+      ])
   );
   const exMap = new Map(allExercises.map((e) => [e.id, e]));
+  // Written onto every row of the exercise-day rather than just the first, so a
+  // partial re-import still recovers the note.
+  const noteMap = new Map(allNotes.map((n) => [`${n.date}|${n.exerciseId}`, n.text]));
 
   const rows = allSets.map((s) => {
     const ex = exMap.get(s.exerciseId);
@@ -294,7 +344,7 @@ export async function exportFitNotesCSV(): Promise<string> {
       Reps: s.reps || 0,
       Distance: s.distance || '',
       Time: timeFormatted,
-      Comment: ''
+      Comment: noteMap.get(`${s.date}|${s.exerciseId}`) || ''
     };
   });
 

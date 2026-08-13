@@ -115,15 +115,42 @@ async function playSynthesisedChime(): Promise<boolean> {
   }
 }
 
-// There is deliberately no background audio keep-alive here any more.
+// Opt-in background keep-alive.
 //
-// It used to hold a silent looping HTML5 <audio> element plus a near-inaudible
-// oscillator for the whole rest period, purely to stop Android suspending
-// WebAudio with the screen off. The cost was that the app held audio focus the
-// entire time, so the user's music was ducked from the moment the timer started.
-// The service worker (sw-notifications.js) now owns the completion alert, which
-// fires whether or not this page is awake, so the keep-alive bought nothing that
-// was worth silencing the user's music for.
+// Android freezes the page and suspends WebAudio once the screen has been off
+// for a while, so the chime cannot fire from here — only the service worker's
+// notification gets through. Holding a silent looping audio element keeps the
+// page awake and the chime reliable, at the cost of holding audio focus for the
+// whole rest period, which dims other apps' music. That trade is the user's to
+// make, so this runs only when they enable it in Settings.
+const SILENT_WAV_URI =
+  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
+let silentAudioEl: HTMLAudioElement | null = null;
+
+export function startBackgroundKeepAlive() {
+  try {
+    configureAudioSession();
+    if (!silentAudioEl) {
+      silentAudioEl = new Audio(SILENT_WAV_URI);
+      silentAudioEl.loop = true;
+      silentAudioEl.volume = 0.0001;
+    }
+    void silentAudioEl.play().catch(() => {});
+  } catch (err) {
+    console.warn('Keep-alive audio error:', err);
+  }
+}
+
+export function stopBackgroundKeepAlive() {
+  if (!silentAudioEl) return;
+  try {
+    silentAudioEl.pause();
+    silentAudioEl.currentTime = 0;
+  } catch (err) {
+    console.warn('Keep-alive audio stop error:', err);
+  }
+}
 
 export function triggerTimerVibration() {
   if ('vibrate' in navigator) {
@@ -219,8 +246,14 @@ export async function clearTimerNotification() {
   }
 }
 
-export async function showTimerNotification(title: string, body: string) {
+export async function showTimerNotification(
+  title: string,
+  body: string,
+  prefs: { sound?: boolean; vibration?: boolean } = {}
+) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const { sound = true, vibration = true } = prefs;
 
   const options: NotificationOptions = {
     body,
@@ -230,9 +263,10 @@ export async function showTimerNotification(title: string, body: string) {
     renotify: true,
     requireInteraction: true,
     // Explicit: the countdown notification sets silent, and an unset value here
-    // was being inherited as "no sound" on some Android builds.
-    silent: false,
-    vibrate: [300, 150, 300, 150, 500],
+    // was being inherited as "no sound" on some Android builds. With the screen
+    // off this notification is the only thing that can make a sound at all.
+    silent: !sound,
+    vibrate: vibration ? [300, 150, 300, 150, 500] : [],
   } as NotificationOptions;
 
   // Retire the silent countdown first, so the alert arrives as a new
@@ -258,12 +292,20 @@ export async function showTimerNotification(title: string, body: string) {
   }
 }
 
-export async function scheduleServiceWorkerTimer(endsAt: number) {
+export async function scheduleServiceWorkerTimer(
+  endsAt: number,
+  prefs: { sound?: boolean; vibration?: boolean } = {}
+) {
   if (!('serviceWorker' in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.ready;
     if (reg.active) {
-      reg.active.postMessage({ type: 'SCHEDULE_REST_TIMER', endsAt });
+      reg.active.postMessage({
+        type: 'SCHEDULE_REST_TIMER',
+        endsAt,
+        sound: prefs.sound !== false,
+        vibration: prefs.vibration !== false,
+      });
     }
   } catch (err) {
     console.warn('Could not schedule SW timer:', err);

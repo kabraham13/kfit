@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../db';
+import { db, UserSettings } from '../db';
 import { parseAndImportFitNotesCSV, exportFitNotesCSV, CSVImportResult } from '../utils/csvHandler';
 import { todayISO } from '../utils/date';
+import { defaultPlatesFor, formatPlate } from '../utils/plates';
+import { useLiveQuery } from 'dexie-react-hooks';
 import {
   Upload,
   Download,
@@ -14,6 +16,8 @@ import {
   Unlink,
   Check,
   ChevronDown,
+  Bell,
+  Dumbbell,
   Link as LinkIcon
 } from 'lucide-react';
 import {
@@ -119,6 +123,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   setDefaultTimerSec
 }) => {
   const [isImporting, setIsImporting] = useState(false);
+  const settings = useLiveQuery(() => db.userSettings.get('default'));
+  const [newPlate, setNewPlate] = useState('');
+
+  const unitDefaults = defaultPlatesFor(weightUnit);
+  const availablePlates = settings?.availablePlates?.length
+    ? settings.availablePlates
+    : unitDefaults.plates;
+  const barWeight = settings?.defaultBarWeight ?? unitDefaults.bar;
+
+  const updateSettings = async (patch: Partial<UserSettings>) => {
+    await db.userSettings.update('default', patch);
+  };
+
+  const addPlate = async () => {
+    const value = parseFloat(newPlate);
+    if (!Number.isFinite(value) || value <= 0) return;
+    if (availablePlates.includes(value)) {
+      setNewPlate('');
+      return;
+    }
+    await updateSettings({
+      availablePlates: [...availablePlates, value].sort((a, b) => b - a)
+    });
+    setNewPlate('');
+  };
+
+  const removePlate = async (plate: number) => {
+    await updateSettings({ availablePlates: availablePlates.filter((p) => p !== plate) });
+  };
+
   const [importResult, setImportResult] = useState<CSVImportResult | null>(null);
 
   // Google Drive State
@@ -423,6 +457,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     Added <span className="font-bold text-white">{importResult.setsImported} sets</span> across{' '}
                     <span className="font-bold text-white">{importResult.workoutsImported} workout days</span>, and created{' '}
                     <span className="font-bold text-white">{importResult.exercisesCreated} exercises</span>.
+                    {importResult.notesImported > 0 && (
+                      <>
+                        {' '}Recovered{' '}
+                        <span className="font-bold text-white">
+                          {importResult.notesImported} exercise notes
+                        </span>{' '}
+                        from the Comment column.
+                      </>
+                    )}
                     {importResult.setsSkipped > 0 && (
                       <>
                         {' '}
@@ -498,6 +541,174 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <option value={120}>120 Seconds (2 min)</option>
             <option value={180}>180 Seconds (3 min)</option>
           </select>
+        </div>
+      </div>
+
+      {/* Alerts Section */}
+      <div className="bg-surface border border-surfaceBorder rounded-3xl p-5 shadow-xl space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+            <Bell className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">Rest Timer Alerts</h3>
+            <p className="text-xs text-slate-400">How the timer tells you the set is over</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between p-3.5 bg-card rounded-2xl border border-surfaceBorder">
+          <div className="pr-3">
+            <div className="font-bold text-white text-sm">Chime</div>
+            <div className="text-xs text-slate-400">Play a sound when the timer finishes</div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              checked={settings?.soundEnabled !== false}
+              onChange={(e) => void updateSettings({ soundEnabled: e.target.checked })}
+              className="sr-only peer"
+              aria-label="Timer chime"
+            />
+            <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between p-3.5 bg-card rounded-2xl border border-surfaceBorder">
+          <div className="pr-3">
+            <div className="font-bold text-white text-sm">Vibration</div>
+            <div className="text-xs text-slate-400">Buzz when the timer finishes</div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              checked={settings?.vibrationEnabled !== false}
+              onChange={(e) => void updateSettings({ vibrationEnabled: e.target.checked })}
+              className="sr-only peer"
+              aria-label="Timer vibration"
+            />
+            <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between p-3.5 bg-card rounded-2xl border border-surfaceBorder">
+          <div className="pr-3">
+            <div className="font-bold text-white text-sm">Chime with screen off</div>
+            <div className="text-xs text-slate-400">
+              Keeps the chime reliable when your screen has been off the whole rest.
+              Holds audio focus, so other apps' music will dim while the timer runs.
+            </div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              checked={settings?.keepAudioAliveInBackground === true}
+              onChange={(e) =>
+                void updateSettings({ keepAudioAliveInBackground: e.target.checked })
+              }
+              className="sr-only peer"
+              aria-label="Chime with screen off"
+            />
+            <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+          </label>
+        </div>
+      </div>
+
+      {/* Barbell & Plates Section */}
+      <div className="bg-surface border border-surfaceBorder rounded-3xl p-5 shadow-xl space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <Dumbbell className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">Barbell & Plates</h3>
+            <p className="text-xs text-slate-400">
+              What your gym has, used to work out what goes on each side
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between p-3.5 bg-card rounded-2xl border border-surfaceBorder">
+          <div className="pr-3">
+            <div className="font-bold text-white text-sm">Default bar weight</div>
+            <div className="text-xs text-slate-400">
+              Individual exercises can override this (EZ bar, trap bar)
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <input
+              type="number"
+              step="0.5"
+              min="0"
+              value={barWeight}
+              onChange={(e) =>
+                void updateSettings({ defaultBarWeight: parseFloat(e.target.value) || 0 })
+              }
+              aria-label="Default bar weight"
+              className="w-20 bg-[#090a0f] border border-surfaceBorder focus:border-brand-500 text-white font-mono font-bold text-center py-2 rounded-xl text-sm outline-none transition"
+            />
+            <span className="text-xs font-bold text-slate-400">{weightUnit}</span>
+          </div>
+        </div>
+
+        <div className="p-3.5 bg-card rounded-2xl border border-surfaceBorder space-y-3">
+          <div>
+            <div className="font-bold text-white text-sm">Available plates</div>
+            <div className="text-xs text-slate-400">
+              One side's worth. Tap a plate to remove it.
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {availablePlates.length === 0 ? (
+              <span className="text-xs text-slate-500">
+                No plates configured — breakdowns are hidden.
+              </span>
+            ) : (
+              availablePlates.map((plate) => (
+                <button
+                  key={plate}
+                  onClick={() => void removePlate(plate)}
+                  aria-label={`Remove ${formatPlate(plate)} ${weightUnit} plate`}
+                  className="px-3 py-1.5 rounded-xl bg-[#090a0f] border border-surfaceBorder hover:border-rose-500/50 hover:text-rose-300 text-slate-200 font-mono font-bold text-xs transition"
+                >
+                  {formatPlate(plate)} ×
+                </button>
+              ))
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              step="0.5"
+              min="0"
+              value={newPlate}
+              onChange={(e) => setNewPlate(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void addPlate();
+              }}
+              placeholder={`Add plate (${weightUnit})`}
+              aria-label="Add a plate size"
+              className="flex-1 min-w-0 bg-[#090a0f] border border-surfaceBorder focus:border-brand-500 text-white font-mono text-sm px-3 py-2 rounded-xl outline-none transition"
+            />
+            <button
+              onClick={() => void addPlate()}
+              className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition shrink-0"
+            >
+              Add
+            </button>
+            <button
+              onClick={() =>
+                void updateSettings({
+                  availablePlates: unitDefaults.plates,
+                  defaultBarWeight: unitDefaults.bar
+                })
+              }
+              className="px-3 py-2 rounded-xl bg-surface border border-surfaceBorder text-slate-300 hover:text-white font-bold text-xs transition shrink-0"
+            >
+              Reset
+            </button>
+          </div>
         </div>
       </div>
 

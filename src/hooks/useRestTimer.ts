@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db';
 import {
   cancelServiceWorkerTimer,
   clearTimerNotification,
@@ -8,6 +10,8 @@ import {
   scheduleServiceWorkerTimer,
   showOngoingTimerNotification,
   showTimerNotification,
+  startBackgroundKeepAlive,
+  stopBackgroundKeepAlive,
   triggerTimerVibration,
 } from '../utils/timer';
 
@@ -41,6 +45,19 @@ function writePersisted(state: PersistedTimer | null) {
 }
 
 export function useRestTimer(defaultTimerSec: number) {
+  // Read straight from the database rather than through props: the alert fires
+  // from callbacks and a service-worker message, and a stale copy of these
+  // would mean chiming after the user had switched the sound off.
+  const settings = useLiveQuery(() => db.userSettings.get('default'));
+  const soundEnabled = settings?.soundEnabled !== false;
+  const vibrationEnabled = settings?.vibrationEnabled !== false;
+  const keepAudioAlive = settings?.keepAudioAliveInBackground === true;
+
+  // Callbacks below are memoised, so the live values are mirrored into refs to
+  // avoid rebuilding the whole timer every time settings load.
+  const prefsRef = useRef({ sound: soundEnabled, vibration: vibrationEnabled, keepAudioAlive });
+  prefsRef.current = { sound: soundEnabled, vibration: vibrationEnabled, keepAudioAlive };
+
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [totalSeconds, setTotalSeconds] = useState<number>(defaultTimerSec);
   const [isActive, setIsActive] = useState<boolean>(false);
@@ -67,10 +84,18 @@ export function useRestTimer(defaultTimerSec: number) {
   const fireAlert = useCallback(() => {
     if (firedRef.current) return;
     firedRef.current = true;
-    primeAudio();
-    void playRestTimerChime();
-    triggerTimerVibration();
-    void showTimerNotification('Rest Timer Complete! 🔔', 'Time for your next set!');
+    const { sound, vibration } = prefsRef.current;
+
+    if (sound) {
+      primeAudio();
+      void playRestTimerChime();
+    }
+    if (vibration) triggerTimerVibration();
+    void showTimerNotification('Rest Timer Complete! 🔔', 'Time for your next set!', {
+      sound,
+      vibration,
+    });
+    stopBackgroundKeepAlive();
   }, []);
 
   /** Recompute the display from the deadline; fire the alert if we passed it. */
@@ -120,7 +145,7 @@ export function useRestTimer(defaultTimerSec: number) {
         endsAtRef.current = saved.endsAt;
         setSecondsLeft(remaining);
         setIsActive(true);
-        void scheduleServiceWorkerTimer(saved.endsAt);
+        void scheduleServiceWorkerTimer(saved.endsAt, prefsRef.current);
         return;
       }
       // Expired while we were away — a finished timer is not shown at all.
@@ -207,7 +232,8 @@ export function useRestTimer(defaultTimerSec: number) {
       setTotalSeconds(duration);
       setSecondsLeft(duration);
       setIsActive(true);
-      void scheduleServiceWorkerTimer(endsAt);
+      if (prefsRef.current.keepAudioAlive) startBackgroundKeepAlive();
+      void scheduleServiceWorkerTimer(endsAt, prefsRef.current);
       persist(null);
     },
     [defaultTimerSec, persist]
@@ -222,6 +248,7 @@ export function useRestTimer(defaultTimerSec: number) {
       endsAtRef.current = null;
       setSecondsLeft(remaining);
       setIsActive(false);
+      stopBackgroundKeepAlive();
       void cancelServiceWorkerTimer();
       persist(remaining);
       lastNotifiedSecondRef.current = null;
@@ -235,7 +262,8 @@ export function useRestTimer(defaultTimerSec: number) {
       endsAtRef.current = endsAt;
       setIsActive(true);
       primeAudio();
-      void scheduleServiceWorkerTimer(endsAt);
+      if (prefsRef.current.keepAudioAlive) startBackgroundKeepAlive();
+      void scheduleServiceWorkerTimer(endsAt, prefsRef.current);
       persist(null);
     }
   }, [isActive, secondsLeft, persist]);
@@ -247,7 +275,8 @@ export function useRestTimer(defaultTimerSec: number) {
     setSecondsLeft(totalRef.current);
     setIsActive(true);
     primeAudio();
-    void scheduleServiceWorkerTimer(endsAt);
+    if (prefsRef.current.keepAudioAlive) startBackgroundKeepAlive();
+    void scheduleServiceWorkerTimer(endsAt, prefsRef.current);
     persist(null);
   }, [persist]);
 
@@ -263,7 +292,7 @@ export function useRestTimer(defaultTimerSec: number) {
         firedRef.current = updated > 0 ? false : firedRef.current;
         const endsAt = Date.now() + updated * 1000;
         endsAtRef.current = endsAt;
-        void scheduleServiceWorkerTimer(endsAt);
+        void scheduleServiceWorkerTimer(endsAt, prefsRef.current);
         persist(null);
       } else {
         persist(updated);
@@ -278,6 +307,7 @@ export function useRestTimer(defaultTimerSec: number) {
     lastNotifiedSecondRef.current = null;
     setIsActive(false);
     setSecondsLeft(null);
+    stopBackgroundKeepAlive();
     void cancelServiceWorkerTimer();
     void clearTimerNotification();
     writePersisted(null);

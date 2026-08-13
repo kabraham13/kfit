@@ -7,6 +7,10 @@ import { ExerciseSelectorView } from './ExerciseSelectorView';
 import { SwipeToDelete } from './SwipeToDelete';
 import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
 import { parseLocalDate, toLocalISODate } from '../utils/date';
+import { PlateLoadBar } from './PlateLoadBar';
+import { equipmentOf, defaultPlatesFor } from '../utils/plates';
+import { ExerciseNoteField } from './ExerciseNoteField';
+import { ExerciseEquipmentControl } from './ExerciseEquipmentControl';
 import { MonthCalendarModal } from './MonthCalendarModal';
 import { triggerAutoBackupIfEnabled } from '../utils/googleDriveBackup';
 
@@ -138,6 +142,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
 
   const allLogs = useLiveQuery(() => db.workoutLogs.toArray());
   const exercises = useLiveQuery(() => db.exercises.toArray());
+  const settings = useLiveQuery(() => db.userSettings.get('default'));
 
   // Group sets by exercise for selected date
   const exerciseGroupMap = new Map<string, WorkoutSet[]>();
@@ -326,6 +331,15 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     const exerciseName = sets[0]?.exerciseName || exInfo?.name || 'Exercise';
     const badgeStyle = getCategoryBadgeStyle(exInfo?.categoryName, exInfo?.categoryId);
 
+    // Plate breakdown only makes sense for something you load a bar with.
+    // Equipment is inferred from the name unless the user has overridden it.
+    const unitDefaults = defaultPlatesFor(weightUnit === 'kg' ? 'kg' : 'lbs');
+    const availablePlates = settings?.availablePlates?.length
+      ? settings.availablePlates
+      : unitDefaults.plates;
+    const barWeight = exInfo?.barWeight ?? settings?.defaultBarWeight ?? unitDefaults.bar;
+    const showPlates = !isCardio && exInfo != null && equipmentOf(exInfo) === 'barbell';
+
     return (
       <div className="max-w-3xl mx-auto px-4 py-4 pb-32">
         {/* Back Navigation & Exercise Title Bar */}
@@ -367,6 +381,15 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Equipment / bar weight, which drive the plate breakdown below. */}
+        {!isCardio && exInfo && (
+          <ExerciseEquipmentControl
+            exercise={exInfo}
+            defaultBarWeight={settings?.defaultBarWeight ?? unitDefaults.bar}
+            weightUnit={weightUnit}
+          />
+        )}
 
         {/* Last session — the reference point for whether today is progress.
             Without it you have to leave the exercise to answer that. */}
@@ -507,6 +530,15 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
                       }
                       className="w-full bg-[#090a0f] border border-surfaceBorder focus:border-brand-500 text-white font-mono font-black text-center py-2.5 rounded-xl text-base outline-none transition"
                     />
+
+                    {showPlates && set.weight > 0 && (
+                      <PlateLoadBar
+                        weight={set.weight}
+                        barWeight={barWeight}
+                        availablePlates={availablePlates}
+                        weightUnit={weightUnit}
+                      />
+                    )}
                   </div>
 
                   <div className="col-span-4 pr-3">
@@ -554,6 +586,10 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
           <Plus className="w-5 h-5" />
           <span>Add Set</span>
         </button>
+
+        <div className="mt-6">
+          <ExerciseNoteField date={selectedDate} exerciseId={activeExerciseId!} />
+        </div>
       </div>
     );
   }

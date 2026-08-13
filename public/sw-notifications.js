@@ -34,6 +34,9 @@ self.addEventListener('message', (event) => {
   if (event.data.type === 'SCHEDULE_REST_TIMER') {
     if (restTimerTimeoutId) clearTimeout(restTimerTimeoutId);
     const delay = Math.max(0, event.data.endsAt - Date.now());
+    // Captured now, not read at fire time: the page may be frozen by then.
+    const wantSound = event.data.sound !== false;
+    const wantVibration = event.data.vibration !== false;
 
     restTimerTimeoutId = setTimeout(async () => {
       restTimerTimeoutId = null;
@@ -51,8 +54,8 @@ self.addEventListener('message', (event) => {
           tag: 'kfit-rest-timer-done',
           renotify: true,
           requireInteraction: true,
-          silent: false,
-          vibrate: [400, 200, 400, 200, 400, 200, 600],
+          silent: !wantSound,
+          vibrate: wantVibration ? [400, 200, 400, 200, 400, 200, 600] : [],
         });
 
         // A worker cannot play audio. If a page is still alive, hand it the

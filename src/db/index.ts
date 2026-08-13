@@ -1,4 +1,5 @@
 import Dexie, { Table } from 'dexie';
+import { DEFAULT_BAR_LBS, DEFAULT_PLATES_LBS } from '../utils/plates';
 /**
  * Populates a brand-new database with the starter FitNotes history.
  *
@@ -35,6 +36,30 @@ export interface Exercise {
   primaryMuscle?: string;
   notes?: string;
   isCustom?: boolean;
+  /**
+   * How the weight is loaded. Drives whether a plate breakdown is shown at all.
+   * Left unset on seeded and imported exercises, where it is inferred from the
+   * name — see utils/plates.ts. Set explicitly only when the user overrides it.
+   */
+  equipment?: Equipment;
+  /** Overrides the global bar weight: EZ bar, trap bar, safety squat bar. */
+  barWeight?: number;
+}
+
+export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'bodyweight' | 'other';
+
+/**
+ * A free-text note attached to one exercise on one day, e.g. "left elbow ached"
+ * or "belt from set 3". Deliberately per exercise-day rather than per workout:
+ * feedback you want later is almost always about a specific lift.
+ *
+ * Round-trips through the FitNotes CSV `Comment` column.
+ */
+export interface ExerciseNote {
+  date: string; // YYYY-MM-DD
+  exerciseId: string;
+  text: string;
+  updatedAt: number;
 }
 
 export interface WorkoutLog {
@@ -66,6 +91,19 @@ export interface UserSettings {
   defaultRestTimerSeconds: number;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
+  /**
+   * Plate sizes on hand, one side's worth, in the user's weight unit. Gyms
+   * differ, so this is not hardcoded.
+   */
+  availablePlates?: number[];
+  /** Weight of the standard barbell, before any per-exercise override. */
+  defaultBarWeight?: number;
+  /**
+   * Holds a silent audio loop for the duration of a rest so the chime still
+   * fires with the screen off. Costs audio focus, which dims other apps' music,
+   * so it is opt-in rather than the default.
+   */
+  keepAudioAliveInBackground?: boolean;
   /** Set once the starter data has been installed, so seeding never re-runs. */
   hasSeeded?: boolean;
 }
@@ -76,6 +114,7 @@ class KFitDatabase extends Dexie {
   workoutLogs!: Table<WorkoutLog, string>;
   workoutSets!: Table<WorkoutSet, number>;
   userSettings!: Table<UserSettings, string>;
+  exerciseNotes!: Table<ExerciseNote, [string, string]>;
 
   constructor() {
     super('kfit_database');
@@ -85,6 +124,13 @@ class KFitDatabase extends Dexie {
       workoutLogs: 'id, date',
       workoutSets: '++id, workoutId, date, exerciseId, [date+exerciseId]',
       userSettings: 'id'
+    });
+
+    // v2 adds per-exercise-day notes. Dexie carries forward every table not
+    // named here, and the new optional Exercise/UserSettings fields need no
+    // migration because they are not indexed.
+    this.version(2).stores({
+      exerciseNotes: '[date+exerciseId], date, exerciseId'
     });
   }
 }
@@ -147,6 +193,17 @@ export async function initDatabaseDefaults() {
       defaultRestTimerSeconds: 90,
       soundEnabled: true,
       vibrationEnabled: true,
+      availablePlates: DEFAULT_PLATES_LBS,
+      defaultBarWeight: DEFAULT_BAR_LBS,
+      keepAudioAliveInBackground: false,
+      hasSeeded: true
+    });
+  } else if (settings.availablePlates === undefined) {
+    // Installs that predate the plate calculator get the standard set rather
+    // than an empty rack, so the breakdown works before anyone visits Settings.
+    await db.userSettings.update('default', {
+      availablePlates: DEFAULT_PLATES_LBS,
+      defaultBarWeight: DEFAULT_BAR_LBS,
       hasSeeded: true
     });
   } else if (!settings.hasSeeded) {
