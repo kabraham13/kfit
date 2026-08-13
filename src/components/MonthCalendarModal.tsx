@@ -54,14 +54,14 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
     const lastDay = new Date(viewYear, viewMonth, 0);
     const totalDays = lastDay.getDate();
 
-    // Day of week for 1st of month: convert Sunday(0) to 7 so Monday is 1
-    let startDayOfWeek = firstDay.getDay();
-    startDayOfWeek = startDayOfWeek === 0 ? 7 : startDayOfWeek;
+    // Weeks start on Sunday, which is what getDay() already returns as 0, so
+    // the day number is the number of blank cells needed before the 1st.
+    const startDayOfWeek = firstDay.getDay();
 
     const grid = [];
 
     // Empty padding slots for days before start of month
-    for (let i = 1; i < startDayOfWeek; i++) {
+    for (let i = 0; i < startDayOfWeek; i++) {
       grid.push(null);
     }
 
@@ -143,15 +143,15 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
           </button>
         </div>
 
-        {/* Week Day Labels (Mon to Sun) */}
+        {/* Week Day Labels (Sun to Sat) */}
         <div className="grid grid-cols-7 text-center text-xs font-bold text-zinc-400 uppercase tracking-wider py-1 border-b border-zinc-800/80">
+          <span>Sun</span>
           <span>Mon</span>
           <span>Tue</span>
           <span>Wed</span>
           <span>Thu</span>
           <span>Fri</span>
           <span>Sat</span>
-          <span>Sun</span>
         </div>
 
         {/* Month Days Grid */}

@@ -161,19 +161,18 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   const today = new Date();
   const formatDate = toLocalISODate;
 
-  // Compute Week Days (Monday to Sunday)
+  // Compute Week Days (Sunday to Saturday)
   const getWeekDays = (baseDateStr: string) => {
     const d = parseLocalDate(baseDateStr);
-    const dayOfWeek = d.getDay();
-    const distanceToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    
-    const monday = new Date(d);
-    monday.setDate(d.getDate() + distanceToMon);
+    // getDay() is already Sunday-indexed (0 = Sunday), so the offset back to the
+    // start of the week is just the day number itself.
+    const sunday = new Date(d);
+    sunday.setDate(d.getDate() - d.getDay());
 
     const week = [];
     for (let i = 0; i < 7; i++) {
-      const day = new Date(monday);
-      day.setDate(monday.getDate() + i);
+      const day = new Date(sunday);
+      day.setDate(sunday.getDate() + i);
       const dateStr = formatDate(day);
       week.push({
         dateStr,
