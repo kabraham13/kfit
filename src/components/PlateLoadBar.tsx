@@ -29,6 +29,20 @@ export const PlateLoadBar: React.FC<PlateLoadBarProps> = ({
   availablePlates,
   weightUnit,
 }) => {
+  // A weight under the bar itself is not loadable at all. Say so rather than
+  // rendering an empty cell, which reads as the feature being broken — and is a
+  // strong hint the exercise is really on a fixed-weight bar.
+  if (weight > 0 && weight < barWeight) {
+    return (
+      <span
+        className="text-[10px] font-semibold text-slate-500"
+        title={`Less than the ${formatPlate(barWeight)} ${weightUnit} bar`}
+      >
+        under bar weight
+      </span>
+    );
+  }
+
   const load = computePlateLoad(weight, barWeight, availablePlates);
   if (!load) return null;
 

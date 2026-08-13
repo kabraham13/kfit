@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings2 } from 'lucide-react';
+import { ChevronDown, Settings2 } from 'lucide-react';
 import { db, Equipment, Exercise } from '../db';
 import { equipmentOf, formatPlate, inferEquipment } from '../utils/plates';
 
@@ -10,7 +10,18 @@ interface ExerciseEquipmentControlProps {
 }
 
 const EQUIPMENT_LABELS: Record<Equipment, string> = {
+  barbell: 'Barbell (loaded with plates)',
+  fixed: 'Fixed weight (no plates)',
+  dumbbell: 'Dumbbell',
+  machine: 'Machine / cable',
+  bodyweight: 'Bodyweight',
+  other: 'Other',
+};
+
+/** The equipment line has no room for the parenthetical. */
+const SHORT_LABELS: Record<Equipment, string> = {
   barbell: 'Barbell',
+  fixed: 'Fixed weight',
   dumbbell: 'Dumbbell',
   machine: 'Machine / cable',
   bodyweight: 'Bodyweight',
@@ -42,16 +53,22 @@ export const ExerciseEquipmentControl: React.FC<ExerciseEquipmentControlProps> =
 
   return (
     <div className="mb-4">
+      {/* Styled as an obvious control: as plain text this read as a caption and
+          nobody would guess the equipment could be changed here. */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="flex items-center gap-2 text-[11px] font-bold text-slate-400 hover:text-slate-200 transition"
+        aria-expanded={isOpen}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-surfaceBorder hover:border-brand-500/40 text-[11px] font-bold text-slate-300 hover:text-white transition"
       >
-        <Settings2 className="w-3.5 h-3.5" />
+        <Settings2 className="w-3.5 h-3.5 text-brand-400" />
         <span>
-          {EQUIPMENT_LABELS[equipment]}
+          {SHORT_LABELS[equipment]}
           {equipment === 'barbell' && ` · ${formatPlate(barWeight)} ${weightUnit} bar`}
-          {isInferred && <span className="text-slate-600"> (auto)</span>}
+          {isInferred && <span className="text-slate-500"> (auto)</span>}
         </span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {isOpen && (
@@ -73,9 +90,7 @@ export const ExerciseEquipmentControl: React.FC<ExerciseEquipmentControlProps> =
               }
               className="w-full bg-[#090a0f] border border-surfaceBorder focus:border-brand-500 text-white font-bold px-3 py-2 rounded-xl text-xs outline-none cursor-pointer"
             >
-              <option value="">
-                Auto — {EQUIPMENT_LABELS[inferEquipment(exercise)]}
-              </option>
+              <option value="">Auto — {SHORT_LABELS[inferEquipment(exercise)]}</option>
               {(Object.keys(EQUIPMENT_LABELS) as Equipment[]).map((key) => (
                 <option key={key} value={key}>
                   {EQUIPMENT_LABELS[key]}

@@ -46,7 +46,14 @@ export interface Exercise {
   barWeight?: number;
 }
 
-export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'bodyweight' | 'other';
+export type Equipment =
+  | 'barbell'
+  /** Loaded by the user, but not symmetrically — no per-side plate maths. */
+  | 'fixed'
+  | 'dumbbell'
+  | 'machine'
+  | 'bodyweight'
+  | 'other';
 
 /**
  * A free-text note attached to one exercise on one day, e.g. "left elbow ached"
