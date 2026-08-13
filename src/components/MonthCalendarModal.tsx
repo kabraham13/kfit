@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, Flame } from 'lucide-react';
+import { parseLocalDate, todayISO } from '../utils/date';
 
 interface MonthCalendarModalProps {
   selectedDate: string;
@@ -15,7 +16,7 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
   onClose
 }) => {
   // Current displayed year and month (1-indexed month 1-12)
-  const initialDate = new Date(selectedDate + 'T00:00:00');
+  const initialDate = parseLocalDate(selectedDate);
   const [viewYear, setViewYear] = useState<number>(initialDate.getFullYear());
   const [viewMonth, setViewMonth] = useState<number>(initialDate.getMonth() + 1); // 1-12
 
@@ -23,7 +24,7 @@ export const MonthCalendarModal: React.FC<MonthCalendarModalProps> = ({
   const allLogs = useLiveQuery(() => db.workoutLogs.toArray());
   const workoutDatesSet = new Set<string>(allLogs?.map((l) => l.date) || []);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayISO();
 
   const shiftMonth = (delta: number) => {
     let newM = viewMonth + delta;

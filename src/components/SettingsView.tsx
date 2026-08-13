@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../db';
 import { parseAndImportFitNotesCSV, exportFitNotesCSV, CSVImportResult } from '../utils/csvHandler';
+import { todayISO } from '../utils/date';
 import {
   Upload,
   Download,
@@ -164,7 +165,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `FitNotes_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `FitNotes_Export_${todayISO()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Dumbbell, Settings, Calendar, ChevronLeft, ChevronRight, Bell, Pause, Play, Square } from 'lucide-react';
 import { MonthCalendarModal } from './MonthCalendarModal';
+import { parseLocalDate, toLocalISODate, todayISO } from '../utils/date';
 
 interface HeaderProps {
   activeTab: 'workout' | 'library' | 'history' | 'settings';
@@ -26,15 +27,15 @@ export const Header: React.FC<HeaderProps> = ({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const shiftDate = (days: number) => {
-    const d = new Date(selectedDate + 'T00:00:00');
+    const d = parseLocalDate(selectedDate);
     d.setDate(d.getDate() + days);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    setSelectedDate(toLocalISODate(d));
   };
 
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const isToday = selectedDate === todayISO();
 
   const formatDateDisplay = (dateStr: string) => {
-    const d = new Date(dateStr + 'T00:00:00');
+    const d = parseLocalDate(dateStr);
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 

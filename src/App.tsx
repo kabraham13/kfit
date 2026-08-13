@@ -9,12 +9,13 @@ import { SettingsView } from './components/SettingsView';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { useRestTimer } from './hooks/useRestTimer';
 import { ensureDriveSessionFresh } from './utils/googleDriveBackup';
+import { todayISO } from './utils/date';
 import { LogOut } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'workout' | 'library' | 'history' | 'settings'>('workout');
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    todayISO()
   );
   const [selectedHistoryExerciseId, setSelectedHistoryExerciseId] = useState<string | null>(null);
 

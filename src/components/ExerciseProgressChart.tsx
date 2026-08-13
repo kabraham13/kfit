@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { parseLocalDate } from '../utils/date';
 
 export interface ProgressPoint {
   date: string; // YYYY-MM-DD
@@ -25,7 +26,7 @@ const PAD_BOTTOM = 28;
 const HEIGHT = 220;
 
 function formatShortDate(iso: string, withYear = false) {
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {
+  return parseLocalDate(iso).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     ...(withYear ? { year: 'numeric' } : {}),
@@ -88,7 +89,7 @@ export const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
     );
   }
 
-  const times = points.map((p) => new Date(p.date + 'T00:00:00').getTime());
+  const times = points.map((p) => parseLocalDate(p.date).getTime());
   const minTime = times[0];
   const maxTime = times[times.length - 1];
   const timeSpan = Math.max(1, maxTime - minTime);
@@ -112,8 +113,8 @@ export const ExerciseProgressChart: React.FC<ExerciseProgressChartProps> = ({
 
   // "Aug 25 → Jul 24" is ambiguous once a training history crosses a year.
   const spansYears =
-    new Date(points[0].date).getFullYear() !==
-    new Date(points[points.length - 1].date).getFullYear();
+    parseLocalDate(points[0].date).getFullYear() !==
+    parseLocalDate(points[points.length - 1].date).getFullYear();
   const showMarkers = points.length <= 30;
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {

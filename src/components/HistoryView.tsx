@@ -4,6 +4,7 @@ import { db, WorkoutSet } from '../db';
 import { Award, Calendar, Trophy, TrendingUp } from 'lucide-react';
 import { calculate1RM } from '../utils/prCalculator';
 import { ExerciseProgressChart } from './ExerciseProgressChart';
+import { parseLocalDate } from '../utils/date';
 
 interface HistoryViewProps {
   initialExerciseId?: string | null;
@@ -145,7 +146,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       ) : (
         <div className="space-y-3">
           {dateEntries.map(([dateStr, sets]) => {
-            const formattedDate = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+            const formattedDate = parseLocalDate(dateStr).toLocaleDateString('en-US', {
               weekday: 'short',
               year: 'numeric',
               month: 'short',

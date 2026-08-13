@@ -6,6 +6,7 @@ import { checkAndCelebratePR } from '../utils/prCalculator';
 import { ExerciseSelectorView } from './ExerciseSelectorView';
 import { SwipeToDelete } from './SwipeToDelete';
 import { CategoryIcon, getCategoryBadgeStyle } from './CategoryIcon';
+import { parseLocalDate, toLocalISODate } from '../utils/date';
 import { MonthCalendarModal } from './MonthCalendarModal';
 import { triggerAutoBackupIfEnabled } from '../utils/googleDriveBackup';
 
@@ -158,11 +159,11 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   }
 
   const today = new Date();
-  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+  const formatDate = toLocalISODate;
 
   // Compute Week Days (Monday to Sunday)
   const getWeekDays = (baseDateStr: string) => {
-    const d = new Date(baseDateStr + 'T00:00:00');
+    const d = parseLocalDate(baseDateStr);
     const dayOfWeek = d.getDay();
     const distanceToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     
@@ -316,7 +317,7 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
     const sets = exerciseGroupMap.get(activeExerciseId!) || [];
     const exInfo = exercises?.find((e) => e.id === activeExerciseId);
     const prevDateLabel = previousSession
-      ? new Date(previousSession.date + 'T00:00:00').toLocaleDateString('en-US', {
+      ? parseLocalDate(previousSession.date).toLocaleDateString('en-US', {
           weekday: 'short',
           month: 'short',
           day: 'numeric'

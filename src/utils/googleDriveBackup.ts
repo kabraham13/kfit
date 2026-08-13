@@ -1,4 +1,5 @@
 import { exportFitNotesCSV } from './csvHandler';
+import { todayISO } from './date';
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const STORAGE_KEY_TOKEN = 'kfit_gdrive_token';
@@ -524,7 +525,7 @@ async function driveFetch(url: string, init: RequestInit = {}, isRetry = false):
  */
 export async function uploadBackupToGoogleDrive(): Promise<{ filename: string; fileId: string }> {
   const csvData = await exportFitNotesCSV();
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = todayISO();
   const filename = `FitNotes_Export_${dateStr}.csv`;
 
   const folderId = await getOrCreateBackupFolder();
