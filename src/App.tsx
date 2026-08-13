@@ -18,6 +18,10 @@ export function App() {
     todayISO()
   );
   const [selectedHistoryExerciseId, setSelectedHistoryExerciseId] = useState<string | null>(null);
+  // Bumped by the brand button. WorkoutLogView owns its sub-view, and a
+  // pushState alone would not reach it — popstate is the only history event a
+  // listener sees — so the reset is signalled explicitly.
+  const [goHomeSignal, setGoHomeSignal] = useState(0);
 
   // Exit App Warning Modal State
   const [showExitModal, setShowExitModal] = useState(false);
@@ -108,6 +112,14 @@ export function App() {
     };
   }, [activeTab]);
 
+  /** Back to the default view: today's log, no exercise open. */
+  const handleGoHome = () => {
+    window.history.pushState({ tab: 'workout' }, '');
+    setActiveTab('workout');
+    setSelectedDate(todayISO());
+    setGoHomeSignal((n) => n + 1);
+  };
+
   const handleSelectExerciseHistory = (exerciseId: string) => {
     setSelectedHistoryExerciseId(exerciseId);
     // Push, like every other tab switch does. Without this the history stack
@@ -135,6 +147,7 @@ export function App() {
         isTimerActive={isTimerActive}
         onPauseToggleTimer={handlePauseToggleTimer}
         onCloseTimer={handleCloseTimer}
+        onGoHome={handleGoHome}
       />
 
       {/* Main View Router */}
@@ -153,6 +166,7 @@ export function App() {
             onResetTimer={handleResetTimer}
             onAddTimerSeconds={handleAddTimerSeconds}
             onCloseTimer={handleCloseTimer}
+            goHomeSignal={goHomeSignal}
           />
         )}
 

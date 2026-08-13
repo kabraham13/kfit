@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, WorkoutSet, Exercise, Category } from '../db';
 import { Plus, Check, Dumbbell, ArrowLeft, ChevronRight, History, Play, Pause, RotateCcw, Bell, Square, Calendar as CalendarIcon } from 'lucide-react';
@@ -26,6 +26,8 @@ interface WorkoutLogViewProps {
   onResetTimer: () => void;
   onAddTimerSeconds: (sec: number) => void;
   onCloseTimer: () => void;
+  /** Increments when the brand button is tapped; closes any open sub-view. */
+  goHomeSignal: number;
 }
 
 type LogSubView =
@@ -82,7 +84,8 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   onPauseToggleTimer,
   onResetTimer,
   onAddTimerSeconds,
-  onCloseTimer
+  onCloseTimer,
+  goHomeSignal
 }) => {
   // Derived from history.state rather than hardcoded to 'overview': this view
   // unmounts when the History tab is opened from inside an exercise, taking its
@@ -91,6 +94,16 @@ export const WorkoutLogView: React.FC<WorkoutLogViewProps> = ({
   // of the exercise you came from.
   const [subView, setSubView] = useState<LogSubView>(() => subViewFromHistoryState(window.history.state));
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  // Close whatever sub-view is open when the brand button is tapped. Seeded
+  // with the current value so a remount — returning from the History tab, say —
+  // does not fire this and throw away the exercise being restored.
+  const lastGoHomeSignal = useRef(goHomeSignal);
+  useEffect(() => {
+    if (goHomeSignal === lastGoHomeSignal.current) return;
+    lastGoHomeSignal.current = goHomeSignal;
+    setSubView({ type: 'overview' });
+  }, [goHomeSignal]);
 
   // Single Central PopState Listener for Log Sub-Views
   useEffect(() => {

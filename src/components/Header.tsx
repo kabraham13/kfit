@@ -12,6 +12,8 @@ interface HeaderProps {
   isTimerActive: boolean;
   onPauseToggleTimer: () => void;
   onCloseTimer: () => void;
+  /** Resets to today's log: the brand mark doubles as a "home" button. */
+  onGoHome: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,7 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   timerSecondsLeft,
   isTimerActive,
   onPauseToggleTimer,
-  onCloseTimer
+  onCloseTimer,
+  onGoHome
 }) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -48,15 +51,20 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 bg-[#09090b]/95 backdrop-blur-md border-b border-zinc-800">
       <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Brand Logo */}
-        <div className="flex items-center gap-2.5">
+        {/* Brand Logo — also the way back to today's log from anywhere. */}
+        <button
+          onClick={onGoHome}
+          aria-label="Go to today's workout log"
+          title="Today's workout"
+          className="flex items-center gap-2.5 rounded-xl transition hover:opacity-80 active:scale-95"
+        >
           <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center shadow-md">
             <Dumbbell className="w-5 h-5 text-white transform -rotate-45" />
           </div>
           <h1 className="text-xl font-black tracking-tight text-white font-mono">
             kfit
           </h1>
-        </div>
+        </button>
 
         {/* Date Navigator (Shown when on workout log view) */}
         {activeTab === 'workout' && (
